@@ -7,6 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
+  base: '/ai-tutorials/',
   root: '.',
   plugins: [
     basicSsl(),
@@ -42,7 +43,7 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
-        start_url: '/index.html',
+        start_url: '/ai-tutorials/index.html',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
