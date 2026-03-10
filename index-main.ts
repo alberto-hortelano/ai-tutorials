@@ -325,7 +325,7 @@ function openSettings(): void {
   cfgKeyInput.focus();
 }
 
-document.getElementById('btn-open-settings')!.addEventListener('click', () => openSettings());
+document.getElementById('btn-open-settings')?.addEventListener('click', () => openSettings());
 
 document.getElementById('cfg-cancel')!.addEventListener('click', () => {
   settingsModal.classList.remove('open');
