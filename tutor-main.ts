@@ -513,6 +513,19 @@ convList.addEventListener('click', (e) => {
   if (item) switchConversation(item.dataset.id!);
 });
 
+// ── Click-to-copy LaTeX ──
+content.addEventListener('click', (e) => {
+  const katexEl = (e.target as HTMLElement).closest('.katex') as HTMLElement | null;
+  if (!katexEl) return;
+  const annotation = katexEl.querySelector('annotation[encoding="application/x-tex"]');
+  if (!annotation?.textContent) return;
+  const latex = annotation.textContent;
+  navigator.clipboard.writeText(latex).then(() => {
+    katexEl.classList.add('katex-copied');
+    setTimeout(() => katexEl.classList.remove('katex-copied'), 1200);
+  });
+});
+
 // ── Init ──
 showEmpty();
 restoreBlocks(manager.getActiveBlocks()).then(() => {

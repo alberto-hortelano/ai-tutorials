@@ -63,3 +63,7 @@ $$h_\phi(x) = log\left(
         p_\theta(x)
     }
 \right)$$
+
+## C - 
+
+

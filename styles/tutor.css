@@ -261,6 +261,47 @@ body {
   padding: 4px 0;
 }
 
+/* === Click-to-copy LaTeX === */
+.tutor-answer .katex {
+  cursor: pointer;
+  position: relative;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.tutor-answer .katex:hover {
+  background: rgba(129, 140, 248, 0.1);
+}
+
+.tutor-answer .katex::after {
+  content: 'Click to copy LaTeX';
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--body-bg);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.tutor-answer .katex:hover::after {
+  opacity: 1;
+}
+
+.tutor-answer .katex.katex-copied::after {
+  content: 'Copied!';
+  opacity: 1;
+  color: var(--insight);
+  border-color: var(--insight);
+}
+
 /* === Chart container === */
 .tutor-chart {
   align-self: flex-start;

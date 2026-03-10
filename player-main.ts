@@ -95,22 +95,25 @@ document.title = `${lesson.title} — XCS236`;
 // ── Initialize voice provider ──
 function createVoiceProvider(): VoiceProvider {
   const voiceType = localStorage.getItem(STORAGE_KEYS.VOICE_PROVIDER) || 'web-speech';
+  let fallback: VoiceProvider;
   switch (voiceType) {
     case 'openai-tts':
-      return new OpenAITTSProvider({
+      fallback = new OpenAITTSProvider({
         apiKey: localStorage.getItem(STORAGE_KEYS.OPENAI_API_KEY) || '',
       });
-    case 'elevenlabs-tts': {
-      const eleven = new ElevenLabsTTSProvider({
+      break;
+    case 'elevenlabs-tts':
+      fallback = new ElevenLabsTTSProvider({
         apiKey: localStorage.getItem(STORAGE_KEYS.ELEVENLABS_API_KEY) || '',
       });
-      return new StaticTTSProvider(eleven);
-    }
+      break;
     case 'web-speech':
-      return new WebSpeechProvider();
+      fallback = new WebSpeechProvider();
+      break;
     default:
       return new SilentVoiceProvider();
   }
+  return new StaticTTSProvider(fallback);
 }
 
 // ── Initialize chat provider ──

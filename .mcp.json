@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tutor": {
+      "command": "/home/al/code/ai-tutorials/node_modules/.bin/tsx",
+      "args": ["/home/al/code/ai-tutorials/tutor-mcp/server.ts"]
+    }
+  }
+}
