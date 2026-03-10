@@ -22,6 +22,7 @@ export default defineConfig({
           'audio/es/manifest.json',
         ],
         globIgnores: ['audio/es/**/*.mp3'],
+        navigateFallback: null,
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           {
