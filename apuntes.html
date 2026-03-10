@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XCS236 — Apuntes</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="./styles/topnav.css">
+  <link rel="stylesheet" href="./styles/chat-panel.css">
+  <link rel="stylesheet" href="./apuntes.css">
+</head>
+<body>
+  <div class="apuntes-app" id="apuntes-app">
+    <div class="apuntes-wrap">
+      <!-- topnav injected by apuntes-main.ts -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
+      <div class="apuntes-layout">
+        <nav class="apuntes-sidebar" id="apuntes-sidebar">
+          <div class="sidebar-header">
+            <h1>XCS236 Apuntes</h1>
+            <p>Deep Generative Models</p>
+          </div>
+          <div class="sidebar-search">
+            <input type="text" id="search-input" placeholder="Buscar...">
+          </div>
+          <div class="sidebar-nav" id="sidebar-nav"></div>
+        </nav>
+        <main class="apuntes-content" id="apuntes-content">
+          <div class="apuntes-empty">Selecciona un apunte del menu lateral</div>
+        </main>
+      </div>
+    </div>
+    <div id="chat-panel"></div>
+  </div>
+  <script type="module" src="./apuntes-main.ts"></script>
+</body>
+</html>

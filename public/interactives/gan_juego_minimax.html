@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAN: El Juego Minimax en 1D</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific overrides */
+        body { max-width: 800px; }
+        canvas { height: 250px; }
+        canvas.short { height: 200px; }
+        .graph-container { margin-bottom: 15px; }
+        button.reset { border-color: #e94560; color: #e94560; }
+        button.reset:hover { background: rgba(233, 69, 96, 0.2); }
+        .speed-control {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .speed-control label { font-size: 0.9em; color: #aaa; }
+        input[type="range"] { width: 120px; }
+        .step-info {
+            text-align: center; font-size: 1.05em; color: #ccc; margin-top: 10px;
+        }
+        .step-info .step-number { color: #e94560; font-weight: bold; font-size: 1.2em; }
+        .step-info .step-type { font-weight: 600; padding: 2px 10px; border-radius: 4px; font-size: 0.85em; margin-left: 8px; }
+        .step-type.d-step { background: rgba(100, 255, 150, 0.2); color: #64ff96; }
+        .step-type.g-step { background: rgba(233, 69, 96, 0.2); color: #e94560; }
+        .legend-color.dashed {
+            background: repeating-linear-gradient(90deg, #888 0px, #888 5px, transparent 5px, transparent 10px);
+        }
+        .metrics {
+            display: flex; gap: 30px; justify-content: center; margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .metric { text-align: center; }
+        .metric-label { font-size: 0.8em; color: #888; }
+        .metric-value { font-size: 1.1em; font-weight: 700; color: #e94560; }
+    </style>
+</head>
+<body>
+    <h1>GAN: El Juego Minimax en 1D</h1>
+    <p class="subtitle">Visualizaci&oacute;n del entrenamiento adversarial entre Generador y Discriminador</p>
+
+    <div class="formula-box">
+        min<sub>G</sub> max<sub>D</sub> V(D, G) = E<sub>x~p<sub>data</sub></sub>[log D(x)] + E<sub>z~p<sub>z</sub></sub>[log(1 - D(G(z)))]
+    </div>
+
+    <!-- Controles -->
+    <div class="controls">
+        <div class="controls-row">
+            <button id="btnStep">Paso</button>
+            <button id="btnAuto">Auto</button>
+            <button id="btnReset" class="reset">Reset</button>
+            <div class="speed-control">
+                <label>Velocidad:</label>
+                <input type="range" id="speedSlider" min="50" max="1000" step="50" value="500">
+                <span id="speedValue" style="color:#e94560; font-size:0.85em; min-width:55px;">500ms</span>
+            </div>
+        </div>
+        <div class="step-info">
+            Paso: <span class="step-number" id="stepCount">0</span>
+            <span class="step-type" id="stepType"></span>
+        </div>
+    </div>
+
+    <!-- Gr&aacute;fica superior: Distribuciones -->
+    <div class="section">
+        <h2>Distribuciones</h2>
+        <div class="graph-container">
+            <canvas id="canvasDistributions"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #6496ff"></div>
+                    <span>p<sub>data</sub>(x) &mdash; Distribuci&oacute;n real</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e94560"></div>
+                    <span>p<sub>G</sub>(x) &mdash; Generador</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gr&aacute;fica inferior: Discriminador -->
+    <div class="section">
+        <h2>Discriminador D(x)</h2>
+        <div class="graph-container">
+            <canvas id="canvasDiscriminator" class="short"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #64ff96"></div>
+                    <span>D(x) &mdash; Salida del discriminador</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color dashed"></div>
+                    <span>D(x) = 0.5 &mdash; Equilibrio &oacute;ptimo</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- M&eacute;tricas y Insight -->
+    <div class="section">
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">JSD(p<sub>data</sub> || p<sub>G</sub>)</div>
+                <div class="metric-value" id="jsdValue">0.000</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">&mu;<sub>G</sub></div>
+                <div class="metric-value" id="muGValue">0.00</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">&sigma;<sub>G</sub></div>
+                <div class="metric-value" id="sigmaGValue">2.00</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Mezcla (bimodalidad)</div>
+                <div class="metric-value" id="mixValue">0.00</div>
+            </div>
+        </div>
+        <div class="insight-box">
+            <div class="insight-label">Fase actual</div>
+            <div class="insight-text" id="insightText">
+                Presiona <strong>Paso</strong> o <strong>Auto</strong> para comenzar el entrenamiento.
+                El generador (rojo) empieza como una Gaussiana centrada en 0.
+                El discriminador aprender&aacute; a distinguir datos reales de falsos.
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { gaussian } from './shared/math.js';
+        import { setupCanvas } from './shared/canvas.js';
+        // === Parametros de la simulaci&oacute;n ===
+        const XMIN = -6, XMAX = 6;
+        const DATA_MEANS = [-2, 2];
+        const DATA_STD = 0.7;
+        const DATA_WEIGHTS = [0.5, 0.5];
+
+        // Resoluci&oacute;n de muestreo para las curvas
+        const NUM_POINTS = 300;
+
+        // Estado del generador (evoluciona durante el entrenamiento)
+        let state = {
+            step: 0,
+            muG: 0,           // media del generador
+            sigmaG: 2.0,      // desviaci&oacute;n del generador
+            mix: 0,           // factor de bimodalidad: 0 = unimodal, 1 = bimodal completo
+            separation: 0,    // separaci&oacute;n de los dos modos del generador
+            dSmoothing: 0,    // cu&aacute;nto se ha entrenado el discriminador (0 a 1)
+            isAutoPlaying: false,
+            autoInterval: null,
+            speed: 500
+        };
+
+        // === Funciones matem&aacute;ticas ===
+
+        function pData(x) {
+            let sum = 0;
+            for (let i = 0; i < DATA_MEANS.length; i++) {
+                sum += DATA_WEIGHTS[i] * gaussian(x, DATA_MEANS[i], DATA_STD);
+            }
+            return sum;
+        }
+
+        // Generador: transici&oacute;n de unimodal a bimodal
+        function pG(x) {
+            const s = state.mix;
+            // Componente unimodal centrada en muG
+            const unimodal = gaussian(x, state.muG, state.sigmaG);
+            // Componente bimodal: dos Gaussianas separadas
+            const sep = state.separation;
+            const biSigma = Math.max(0.3, state.sigmaG);
+            const bimodal = 0.5 * gaussian(x, state.muG - sep, biSigma) +
+                            0.5 * gaussian(x, state.muG + sep, biSigma);
+            return (1 - s) * unimodal + s * bimodal;
+        }
+
+        // Discriminador &oacute;ptimo suavizado
+        function D(x) {
+            const pd = pData(x);
+            const pg = pG(x);
+            const sum = pd + pg;
+            if (sum < 1e-10) return 0.5;
+            // Discriminador &oacute;ptimo: D*(x) = p_data(x) / (p_data(x) + p_G(x))
+            const dOptimal = pd / sum;
+            // Suavizar: interpolar entre 0.5 (no entrenado) y D* (completamente entrenado)
+            return 0.5 + (dOptimal - 0.5) * state.dSmoothing;
+        }
+
+        // Divergencia de Jensen-Shannon (estimaci&oacute;n num&eacute;rica)
+        function computeJSD() {
+            const dx = (XMAX - XMIN) / NUM_POINTS;
+            let jsd = 0;
+            for (let i = 0; i <= NUM_POINTS; i++) {
+                const x = XMIN + i * dx;
+                const pd = pData(x);
+                const pg = pG(x);
+                const m = 0.5 * (pd + pg);
+                if (pd > 1e-10 && m > 1e-10) {
+                    jsd += 0.5 * pd * Math.log(pd / m) * dx;
+                }
+                if (pg > 1e-10 && m > 1e-10) {
+                    jsd += 0.5 * pg * Math.log(pg / m) * dx;
+                }
+            }
+            return Math.max(0, jsd);
+        }
+
+        // === L&oacute;gica de entrenamiento ===
+
+        // Fases del entrenamiento:
+        //  Pasos  0-10: D aprende a distinguir, G casi no se mueve
+        //  Pasos 10-30: G empieza a moverse hacia los datos
+        //  Pasos 30-50: G se vuelve bimodal, se acerca a p_data
+        //  Pasos 50+:   Equilibrio, D -> 0.5
+
+        function trainStep() {
+            state.step++;
+            const t = state.step;
+            const isDStep = (t % 2 === 1); // pasos impares = D, pares = G
+
+            if (isDStep) {
+                // Paso del discriminador: aumentar su confianza
+                stepDiscriminator(t);
+            } else {
+                // Paso del generador: moverse hacia p_data
+                stepGenerator(t);
+            }
+
+            return isDStep;
+        }
+
+        function stepDiscriminator(t) {
+            // El discriminador se entrena m&aacute;s al inicio
+            if (t <= 10) {
+                // Fase 1: D aprende r&aacute;pidamente
+                state.dSmoothing = Math.min(1.0, state.dSmoothing + 0.15);
+            } else if (t <= 30) {
+                // Fase 2: D se ajusta a medida que G cambia
+                state.dSmoothing = Math.min(1.0, state.dSmoothing + 0.05);
+            } else {
+                // Fase 3-4: D tiene menos se&ntilde;al conforme G mejora
+                // El suavizado se recalcula: como pG -> pData, D* -> 0.5
+                state.dSmoothing = Math.min(1.0, state.dSmoothing + 0.02);
+            }
+        }
+
+        function stepGenerator(t) {
+            if (t <= 10) {
+                // Fase 1: G casi no se mueve (D est&aacute; aprendiendo)
+                state.sigmaG = Math.max(1.5, state.sigmaG - 0.03);
+            } else if (t <= 30) {
+                // Fase 2: G empieza a moverse, reduce sigma, empieza a separarse
+                state.sigmaG = Math.max(0.7, state.sigmaG - 0.06);
+                state.mix = Math.min(1.0, state.mix + 0.06);
+                state.separation = Math.min(2.0, state.separation + 0.12);
+                // El discriminador pierde algo de se&ntilde;al conforme G mejora
+                state.dSmoothing = Math.max(0.3, state.dSmoothing - 0.03);
+            } else if (t <= 50) {
+                // Fase 3: G se acerca mucho a p_data
+                state.sigmaG = state.sigmaG + (DATA_STD - state.sigmaG) * 0.12;
+                state.mix = Math.min(1.0, state.mix + 0.04);
+                state.separation = state.separation + (2.0 - state.separation) * 0.1;
+                // D pierde se&ntilde;al
+                state.dSmoothing = Math.max(0.1, state.dSmoothing - 0.05);
+            } else {
+                // Fase 4: Convergencia fina
+                state.sigmaG = state.sigmaG + (DATA_STD - state.sigmaG) * 0.08;
+                state.separation = state.separation + (2.0 - state.separation) * 0.06;
+                state.mix = Math.min(1.0, state.mix + 0.02);
+                state.dSmoothing = Math.max(0.0, state.dSmoothing - 0.03);
+            }
+
+            // Mantener muG centr&aacute;ndose en 0 (centro de la distribuci&oacute;n real)
+            state.muG = state.muG * 0.95;
+        }
+
+        function getPhaseInfo() {
+            const t = state.step;
+            if (t === 0) {
+                return {
+                    phase: 0,
+                    text: 'Presiona <strong>Paso</strong> o <strong>Auto</strong> para comenzar el entrenamiento. ' +
+                          'El generador (rojo) empieza como una Gaussiana centrada en 0. ' +
+                          'El discriminador aprender&aacute; a distinguir datos reales de falsos.'
+                };
+            } else if (t <= 10) {
+                return {
+                    phase: 1,
+                    text: '<strong>Fase 1 &mdash; El discriminador aprende:</strong> ' +
+                          'El discriminador aprende a distinguir datos reales (azul) de falsos (rojo). ' +
+                          'D(x) sube donde hay datos reales y baja donde el generador produce muestras.'
+                };
+            } else if (t <= 30) {
+                return {
+                    phase: 2,
+                    text: '<strong>Fase 2 &mdash; El generador se adapta:</strong> ' +
+                          'El generador se mueve hacia donde el discriminador dice que hay datos reales. ' +
+                          'p<sub>G</sub> empieza a dividirse en dos modos para imitar a p<sub>data</sub>.'
+                };
+            } else if (t <= 50) {
+                return {
+                    phase: 3,
+                    text: '<strong>Fase 3 &mdash; Convergencia:</strong> ' +
+                          'El generador se acerca a la distribuci&oacute;n real. ' +
+                          'El discriminador tiene cada vez m&aacute;s dificultad para distinguir las distribuciones.'
+                };
+            } else {
+                return {
+                    phase: 4,
+                    text: '<strong>Fase 4 &mdash; Equilibrio de Nash:</strong> ' +
+                          'D(x) &asymp; 0.5 en todas partes. p<sub>G</sub> &asymp; p<sub>data</sub>. ' +
+                          'El discriminador ya no puede distinguir datos reales de generados. ' +
+                          'JSD &asymp; 0.'
+                };
+            }
+        }
+
+        // === Dibujar distribuciones ===
+
+        function drawDistributions() {
+            const canvas = document.getElementById('canvasDistributions');
+            const { ctx, w: width, h: height } = setupCanvas(canvas);
+
+            const margin = { top: 20, right: 20, bottom: 35, left: 55 };
+            const plotW = width - margin.left - margin.right;
+            const plotH = height - margin.top - margin.bottom;
+
+            // Fondo
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, width, height);
+
+            // Calcular puntos y encontrar el m&aacute;ximo Y
+            const dx = (XMAX - XMIN) / NUM_POINTS;
+            const dataPoints = [];
+            const genPoints = [];
+            let yMax = 0;
+
+            for (let i = 0; i <= NUM_POINTS; i++) {
+                const x = XMIN + i * dx;
+                const yd = pData(x);
+                const yg = pG(x);
+                dataPoints.push({ x, y: yd });
+                genPoints.push({ x, y: yg });
+                yMax = Math.max(yMax, yd, yg);
+            }
+            yMax *= 1.15;
+
+            // Funciones de coordenadas
+            const toX = (x) => margin.left + ((x - XMIN) / (XMAX - XMIN)) * plotW;
+            const toY = (y) => margin.top + plotH - (y / yMax) * plotH;
+
+            // Cuadr&iacute;cula
+            ctx.strokeStyle = '#1a1a3e';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (i / 4) * plotH;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, y);
+                ctx.lineTo(width - margin.right, y);
+                ctx.stroke();
+            }
+
+            // Ejes
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, margin.top + plotH);
+            ctx.lineTo(width - margin.right, margin.top + plotH);
+            ctx.stroke();
+
+            // Marcas eje X
+            ctx.fillStyle = '#888';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            for (let x = XMIN; x <= XMAX; x += 2) {
+                const px = toX(x);
+                ctx.fillText(x.toString(), px, margin.top + plotH + 18);
+                // L&iacute;nea de marca
+                ctx.beginPath();
+                ctx.strokeStyle = '#444';
+                ctx.moveTo(px, margin.top + plotH);
+                ctx.lineTo(px, margin.top + plotH + 5);
+                ctx.stroke();
+            }
+            ctx.fillText('x', width / 2, height - 3);
+
+            // Marcas eje Y
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const val = (yMax * (4 - i) / 4);
+                const y = margin.top + (i / 4) * plotH;
+                ctx.fillText(val.toFixed(2), margin.left - 8, y + 4);
+            }
+
+            // Etiqueta Y
+            ctx.save();
+            ctx.translate(14, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#888';
+            ctx.fillText('densidad', 0, 0);
+            ctx.restore();
+
+            // Relleno bajo p_data
+            ctx.fillStyle = 'rgba(100, 148, 255, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(toX(dataPoints[0].x), toY(0));
+            dataPoints.forEach(p => ctx.lineTo(toX(p.x), toY(p.y)));
+            ctx.lineTo(toX(dataPoints[dataPoints.length - 1].x), toY(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // Relleno bajo p_G
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(toX(genPoints[0].x), toY(0));
+            genPoints.forEach(p => ctx.lineTo(toX(p.x), toY(p.y)));
+            ctx.lineTo(toX(genPoints[genPoints.length - 1].x), toY(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // L&iacute;nea p_data
+            ctx.strokeStyle = '#6496ff';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            dataPoints.forEach((p, i) => {
+                const px = toX(p.x), py = toY(p.y);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+
+            // L&iacute;nea p_G
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            genPoints.forEach((p, i) => {
+                const px = toX(p.x), py = toY(p.y);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+
+            // Etiquetas en el canvas
+            ctx.font = 'bold 12px sans-serif';
+            // Encontrar picos de p_data para colocar etiqueta
+            ctx.fillStyle = '#6496ff';
+            ctx.textAlign = 'center';
+            const peakData = pData(DATA_MEANS[1]);
+            ctx.fillText('p_data', toX(DATA_MEANS[1]) + 30, toY(peakData) - 8);
+
+            // Encontrar pico de p_G para colocar etiqueta
+            ctx.fillStyle = '#e94560';
+            let maxGy = 0, maxGx = 0;
+            genPoints.forEach(p => { if (p.y > maxGy) { maxGy = p.y; maxGx = p.x; } });
+            const labelGx = maxGx < 0 ? maxGx - 1.2 : maxGx + 1.2;
+            ctx.fillText('p_G', toX(maxGx), toY(maxGy) - 8);
+        }
+
+        // === Dibujar discriminador ===
+
+        function drawDiscriminator() {
+            const canvas = document.getElementById('canvasDiscriminator');
+            const { ctx, w: width, h: height } = setupCanvas(canvas);
+
+            const margin = { top: 20, right: 20, bottom: 35, left: 55 };
+            const plotW = width - margin.left - margin.right;
+            const plotH = height - margin.top - margin.bottom;
+
+            // Fondo
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, width, height);
+
+            const toX = (x) => margin.left + ((x - XMIN) / (XMAX - XMIN)) * plotW;
+            const toY = (y) => margin.top + plotH - y * plotH;
+
+            // Cuadr&iacute;cula
+            ctx.strokeStyle = '#1a1a3e';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 4; i++) {
+                const y = margin.top + (i / 4) * plotH;
+                ctx.beginPath();
+                ctx.moveTo(margin.left, y);
+                ctx.lineTo(width - margin.right, y);
+                ctx.stroke();
+            }
+
+            // Ejes
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, margin.top + plotH);
+            ctx.lineTo(width - margin.right, margin.top + plotH);
+            ctx.stroke();
+
+            // Marcas eje X
+            ctx.fillStyle = '#888';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            for (let x = XMIN; x <= XMAX; x += 2) {
+                const px = toX(x);
+                ctx.fillText(x.toString(), px, margin.top + plotH + 18);
+                ctx.beginPath();
+                ctx.strokeStyle = '#444';
+                ctx.moveTo(px, margin.top + plotH);
+                ctx.lineTo(px, margin.top + plotH + 5);
+                ctx.stroke();
+            }
+            ctx.fillText('x', width / 2, height - 3);
+
+            // Marcas eje Y
+            ctx.textAlign = 'right';
+            const yTicks = [0, 0.25, 0.5, 0.75, 1.0];
+            yTicks.forEach(val => {
+                const y = toY(val);
+                ctx.fillStyle = '#888';
+                ctx.fillText(val.toFixed(2), margin.left - 8, y + 4);
+            });
+
+            // Etiqueta Y
+            ctx.save();
+            ctx.translate(14, margin.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#888';
+            ctx.fillText('D(x)', 0, 0);
+            ctx.restore();
+
+            // L&iacute;nea D(x) = 0.5
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(margin.left, toY(0.5));
+            ctx.lineTo(width - margin.right, toY(0.5));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Etiqueta 0.5
+            ctx.fillStyle = '#888';
+            ctx.textAlign = 'left';
+            ctx.font = '10px sans-serif';
+            ctx.fillText('0.5', width - margin.right + 4, toY(0.5) + 4);
+
+            // Curva D(x)
+            const dx = (XMAX - XMIN) / NUM_POINTS;
+            const dPoints = [];
+            for (let i = 0; i <= NUM_POINTS; i++) {
+                const x = XMIN + i * dx;
+                dPoints.push({ x, y: D(x) });
+            }
+
+            // Relleno bajo D(x) donde D > 0.5
+            ctx.fillStyle = 'rgba(100, 255, 150, 0.08)';
+            ctx.beginPath();
+            ctx.moveTo(toX(dPoints[0].x), toY(0.5));
+            dPoints.forEach(p => {
+                ctx.lineTo(toX(p.x), toY(Math.max(p.y, 0.5)));
+            });
+            ctx.lineTo(toX(dPoints[dPoints.length - 1].x), toY(0.5));
+            ctx.closePath();
+            ctx.fill();
+
+            // L&iacute;nea D(x)
+            ctx.strokeStyle = '#64ff96';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            dPoints.forEach((p, i) => {
+                const px = toX(p.x), py = toY(p.y);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+
+            // Etiqueta D(x)
+            ctx.fillStyle = '#64ff96';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'left';
+            const labelIdx = Math.floor(NUM_POINTS * 0.85);
+            ctx.fillText('D(x)', toX(dPoints[labelIdx].x) + 5, toY(dPoints[labelIdx].y) - 8);
+        }
+
+        // === Actualizar UI ===
+
+        function updateUI() {
+            drawDistributions();
+            drawDiscriminator();
+
+            // Paso y tipo
+            document.getElementById('stepCount').textContent = state.step;
+            const stepTypeEl = document.getElementById('stepType');
+            if (state.step === 0) {
+                stepTypeEl.textContent = '';
+                stepTypeEl.className = 'step-type';
+            } else if (state.step % 2 === 1) {
+                stepTypeEl.textContent = 'D-paso (Discriminador)';
+                stepTypeEl.className = 'step-type d-step';
+            } else {
+                stepTypeEl.textContent = 'G-paso (Generador)';
+                stepTypeEl.className = 'step-type g-step';
+            }
+
+            // M&eacute;tricas
+            const jsd = computeJSD();
+            document.getElementById('jsdValue').textContent = jsd.toFixed(4);
+            document.getElementById('muGValue').textContent = state.muG.toFixed(2);
+            document.getElementById('sigmaGValue').textContent = state.sigmaG.toFixed(2);
+            document.getElementById('mixValue').textContent = state.mix.toFixed(2);
+
+            // Insight
+            const info = getPhaseInfo();
+            document.getElementById('insightText').innerHTML = info.text;
+        }
+
+        // === Controles ===
+
+        function resetState() {
+            stopAuto();
+            state.step = 0;
+            state.muG = 0;
+            state.sigmaG = 2.0;
+            state.mix = 0;
+            state.separation = 0;
+            state.dSmoothing = 0;
+            updateUI();
+        }
+
+        function doStep() {
+            trainStep();
+            updateUI();
+        }
+
+        function startAuto() {
+            if (state.isAutoPlaying) return;
+            state.isAutoPlaying = true;
+            document.getElementById('btnAuto').classList.add('active');
+            document.getElementById('btnAuto').textContent = 'Pausa';
+            state.autoInterval = setInterval(doStep, state.speed);
+        }
+
+        function stopAuto() {
+            state.isAutoPlaying = false;
+            document.getElementById('btnAuto').classList.remove('active');
+            document.getElementById('btnAuto').textContent = 'Auto';
+            if (state.autoInterval) {
+                clearInterval(state.autoInterval);
+                state.autoInterval = null;
+            }
+        }
+
+        function toggleAuto() {
+            if (state.isAutoPlaying) stopAuto();
+            else startAuto();
+        }
+
+        // Eventos
+        document.getElementById('btnStep').addEventListener('click', doStep);
+        document.getElementById('btnAuto').addEventListener('click', toggleAuto);
+        document.getElementById('btnReset').addEventListener('click', resetState);
+
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            // Invertir: slider a la derecha = m&aacute;s r&aacute;pido = menos ms
+            state.speed = 1050 - parseInt(e.target.value);
+            document.getElementById('speedValue').textContent = state.speed + 'ms';
+            // Si est&aacute; en auto, reiniciar el intervalo
+            if (state.isAutoPlaying) {
+                clearInterval(state.autoInterval);
+                state.autoInterval = setInterval(doStep, state.speed);
+            }
+        });
+
+        // Teclado: espacio = paso, enter = auto
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') { e.preventDefault(); doStep(); }
+            if (e.code === 'Enter') { e.preventDefault(); toggleAuto(); }
+            if (e.code === 'KeyR') { e.preventDefault(); resetState(); }
+        });
+
+        // Responsive
+        window.addEventListener('resize', updateUI);
+
+        // Inicializar
+        window.addEventListener('load', updateUI);
+    </script>
+</body>
+</html>

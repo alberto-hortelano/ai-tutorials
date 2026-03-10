@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wasserstein vs KL vs JSD</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific styles */
+        .canvas-distributions { height: 220px; }
+        .canvas-metrics { height: 280px; }
+        .metric-kl .metric-value { color: #ff9f43; }
+        .metric-jsd .metric-value { color: #a855f7; }
+        .metric-w1 .metric-value { color: #22c55e; }
+        .highlight-box.insight-safe {
+            background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .highlight-box.insight-warning {
+            background: rgba(255, 159, 67, 0.12); border: 1px solid rgba(255, 159, 67, 0.3);
+        }
+        .highlight-box.insight-danger {
+            background: rgba(233, 69, 96, 0.15); border: 1px solid rgba(233, 69, 96, 0.3);
+        }
+        .insight-safe h4 { color: #22c55e; }
+        .insight-warning h4 { color: #ff9f43; }
+        .insight-danger h4 { color: #e94560; }
+    </style>
+</head>
+<body>
+    <h1>Wasserstein vs KL vs JSD</h1>
+    <p class="subtitle">Por que importa la metrica? -- El problema central de entrenar GANs</p>
+
+    <!-- Controles -->
+    <div class="controls">
+        <h3>Parametros</h3>
+        <div class="control-group">
+            <div class="control">
+                <label>Posicion de p_theta: theta = <span class="value" id="theta-val">2.00</span></label>
+                <input type="range" id="theta-slider" min="-5" max="5" step="0.05" value="2">
+            </div>
+            <div class="control">
+                <label>Ancho de las gaussianas: epsilon = <span class="value" id="eps-val">0.50</span></label>
+                <input type="range" id="eps-slider" min="0.01" max="2.0" step="0.01" value="0.5">
+            </div>
+        </div>
+        <div class="metrics-display">
+            <div class="metric-card metric-kl">
+                <div class="metric-name">KL(p_data || p_theta)</div>
+                <div class="metric-value" id="kl-display">4.00</div>
+            </div>
+            <div class="metric-card metric-jsd">
+                <div class="metric-name">JSD(p_data, p_theta)</div>
+                <div class="metric-value" id="jsd-display">0.693</div>
+            </div>
+            <div class="metric-card metric-w1">
+                <div class="metric-name">W_1(p_data, p_theta)</div>
+                <div class="metric-value" id="w1-display">2.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas de distribuciones -->
+    <div class="section">
+        <h2>Distribuciones</h2>
+        <p style="font-size:0.85em; color:#888; margin-bottom:10px;">
+            p_data = N(0, epsilon^2) fija (azul) &nbsp;&nbsp;|&nbsp;&nbsp; p_theta = N(theta, epsilon^2) movil (rojo)
+        </p>
+        <div class="graph-container">
+            <canvas id="canvasDistributions" class="canvas-distributions"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4a9eff"></div>
+                    <span>p_data = N(0, epsilon^2)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ef4444"></div>
+                    <span>p_theta = N(theta, epsilon^2)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas de metricas -->
+    <div class="section">
+        <h2>Metricas de distancia en funcion de theta</h2>
+        <div class="formula">
+            KL = (theta - theta_0)^2 / (2 * epsilon^2) &nbsp;&nbsp;|&nbsp;&nbsp;
+            W_1 = |theta - theta_0| &nbsp;&nbsp;|&nbsp;&nbsp;
+            JSD: numerica
+        </div>
+        <div class="graph-container">
+            <canvas id="canvasMetrics" class="canvas-metrics"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff9f43"></div>
+                    <span>KL divergence</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #a855f7"></div>
+                    <span>Jensen-Shannon</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #22c55e"></div>
+                    <span>Wasserstein-1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Caja de insight -->
+    <div class="section">
+        <div class="highlight-box insight-safe" id="insightBox">
+            <h4 id="insightTitle">Observacion</h4>
+            <p id="insightText">Con gaussianas anchas, las tres metricas dan gradientes utiles.</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { gaussian, klGaussianSameVar, jsDivergence, wasserstein1, numericalGradient } from './shared/math.js';
+        import { setupCanvas } from './shared/canvas.js';
+
+        // ======================== PARAMETROS ========================
+        let theta = 2.0;
+        let epsilon = 0.5;
+        const theta0 = 0;
+
+        // ======================== UTILIDADES ========================
+        function klDivergence(t, eps) {
+            return klGaussianSameVar(theta0, t, eps);
+        }
+
+        function w1Distance(t) {
+            return wasserstein1(theta0, t);
+        }
+
+        function jsdDivergence(t, eps) {
+            return jsDivergence(x => gaussian(x, theta0, eps), x => gaussian(x, t, eps));
+        }
+
+        function jsdGradient(t, eps) {
+            return numericalGradient(tt => jsdDivergence(tt, eps), t);
+        }
+
+        // ======================== DRAW DISTRIBUTIONS ========================
+        function drawDistributions() {
+            const canvas = document.getElementById('canvasDistributions');
+            const { ctx, w, h } = setupCanvas(canvas);
+
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, w, h);
+
+            const pad = { left: 50, right: 20, top: 15, bottom: 35 };
+            const plotW = w - pad.left - pad.right;
+            const plotH = h - pad.top - pad.bottom;
+
+            const xMin = -6, xMax = 6;
+            // Compute yMax from the tallest Gaussian
+            const peakHeight = gaussian(0, 0, epsilon);
+            const yMax = peakHeight * 1.15;
+
+            function toX(x) { return pad.left + (x - xMin) / (xMax - xMin) * plotW; }
+            function toY(y) { return pad.top + plotH - (y / yMax) * plotH; }
+
+            // Grid lines
+            ctx.strokeStyle = '#222240';
+            ctx.lineWidth = 1;
+            for (let gx = -6; gx <= 6; gx += 2) {
+                ctx.beginPath();
+                ctx.moveTo(toX(gx), pad.top);
+                ctx.lineTo(toX(gx), pad.top + plotH);
+                ctx.stroke();
+            }
+
+            // Axes
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top + plotH);
+            ctx.lineTo(pad.left + plotW, pad.top + plotH);
+            ctx.moveTo(pad.left, pad.top);
+            ctx.lineTo(pad.left, pad.top + plotH);
+            ctx.stroke();
+
+            // X axis labels
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            for (let gx = -6; gx <= 6; gx += 2) {
+                ctx.fillText(gx.toString(), toX(gx), pad.top + plotH + 16);
+            }
+            ctx.fillStyle = '#888';
+            ctx.fillText('x', w / 2, h - 5);
+
+            // Helper: draw filled gaussian curve
+            function drawGaussianCurve(mu, sigma, strokeColor, fillColor) {
+                const step = (xMax - xMin) / 500;
+
+                // Fill
+                ctx.fillStyle = fillColor;
+                ctx.beginPath();
+                ctx.moveTo(toX(xMin), toY(0));
+                for (let x = xMin; x <= xMax; x += step) {
+                    ctx.lineTo(toX(x), toY(gaussian(x, mu, sigma)));
+                }
+                ctx.lineTo(toX(xMax), toY(0));
+                ctx.closePath();
+                ctx.fill();
+
+                // Stroke
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                for (let x = xMin; x <= xMax; x += step) {
+                    const px = toX(x);
+                    const py = toY(gaussian(x, mu, sigma));
+                    if (x === xMin) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+
+            // Draw p_data (blue, fixed at 0)
+            drawGaussianCurve(theta0, epsilon, '#4a9eff', 'rgba(74, 158, 255, 0.2)');
+
+            // Draw p_theta (red, moveable)
+            drawGaussianCurve(theta, epsilon, '#ef4444', 'rgba(239, 68, 68, 0.2)');
+
+            // Labels on peaks
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            const pDataPeak = gaussian(theta0, theta0, epsilon);
+            const pThetaPeak = gaussian(theta, theta, epsilon);
+
+            ctx.fillStyle = '#4a9eff';
+            ctx.fillText('p_data', toX(theta0), toY(pDataPeak) - 8);
+
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText('p_theta', toX(theta), toY(pThetaPeak) - 8);
+
+            // Vertical marker for theta0
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = 'rgba(74, 158, 255, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(toX(theta0), pad.top + plotH);
+            ctx.lineTo(toX(theta0), toY(pDataPeak));
+            ctx.stroke();
+
+            // Vertical marker for theta
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(toX(theta), pad.top + plotH);
+            ctx.lineTo(toX(theta), toY(pThetaPeak));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Arrow showing distance between means
+            if (Math.abs(theta - theta0) > 0.15) {
+                const arrowY = pad.top + plotH - 8;
+                ctx.strokeStyle = '#22c55e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(toX(theta0), arrowY);
+                ctx.lineTo(toX(theta), arrowY);
+                ctx.stroke();
+
+                // Arrow heads
+                const dir = theta > theta0 ? 1 : -1;
+                const headLen = 6;
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath();
+                ctx.moveTo(toX(theta), arrowY);
+                ctx.lineTo(toX(theta) - dir * headLen, arrowY - 4);
+                ctx.lineTo(toX(theta) - dir * headLen, arrowY + 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Label
+                ctx.fillStyle = '#22c55e';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('W_1 = ' + Math.abs(theta).toFixed(2), (toX(theta0) + toX(theta)) / 2, arrowY - 6);
+            }
+        }
+
+        // ======================== DRAW METRICS ========================
+        function drawMetrics() {
+            const canvas = document.getElementById('canvasMetrics');
+            const { ctx, w, h } = setupCanvas(canvas);
+
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, w, h);
+
+            const pad = { left: 55, right: 25, top: 20, bottom: 40 };
+            const plotW = w - pad.left - pad.right;
+            const plotH = h - pad.top - pad.bottom;
+
+            const xMin = -5, xMax = 5;
+            const thetaSteps = 200;
+
+            // Pre-compute all metric values
+            const klVals = [];
+            const jsdVals = [];
+            const w1Vals = [];
+
+            for (let i = 0; i <= thetaSteps; i++) {
+                const t = xMin + (xMax - xMin) * i / thetaSteps;
+                klVals.push(klDivergence(t, epsilon));
+                jsdVals.push(jsdDivergence(t, epsilon));
+                w1Vals.push(w1Distance(t));
+            }
+
+            // Determine yMax: cap KL so it doesn't crush the other curves
+            const maxW1 = Math.max(...w1Vals);
+            const maxJSD = Math.max(...jsdVals);
+            const maxKL = Math.max(...klVals);
+
+            // We want to show meaningful detail. Cap the Y axis.
+            // Show at least up to max(W1, JSD) * 1.3, but allow KL to extend if it fits
+            const desiredMax = Math.max(maxW1, maxJSD) * 1.4;
+            const yMax = Math.min(Math.max(desiredMax, 2.0), Math.max(maxKL * 1.1, desiredMax));
+
+            function toX(x) { return pad.left + (x - xMin) / (xMax - xMin) * plotW; }
+            function toY(y) { return pad.top + plotH - (y / yMax) * plotH; }
+
+            // Grid lines
+            ctx.strokeStyle = '#222240';
+            ctx.lineWidth = 1;
+            for (let gx = -4; gx <= 4; gx += 2) {
+                ctx.beginPath();
+                ctx.moveTo(toX(gx), pad.top);
+                ctx.lineTo(toX(gx), pad.top + plotH);
+                ctx.stroke();
+            }
+            // Horizontal grid
+            const yStep = yMax > 10 ? Math.ceil(yMax / 5) : yMax > 3 ? 1 : 0.5;
+            for (let gy = 0; gy <= yMax; gy += yStep) {
+                ctx.beginPath();
+                ctx.moveTo(pad.left, toY(gy));
+                ctx.lineTo(pad.left + plotW, toY(gy));
+                ctx.stroke();
+            }
+
+            // Axes
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top + plotH);
+            ctx.lineTo(pad.left + plotW, pad.top + plotH);
+            ctx.moveTo(pad.left, pad.top);
+            ctx.lineTo(pad.left, pad.top + plotH);
+            ctx.stroke();
+
+            // X labels
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            for (let gx = -4; gx <= 4; gx += 2) {
+                ctx.fillText(gx.toString(), toX(gx), pad.top + plotH + 16);
+            }
+            ctx.fillStyle = '#888';
+            ctx.fillText('theta (posicion de p_theta)', w / 2, h - 5);
+
+            // Y labels
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#666';
+            for (let gy = 0; gy <= yMax; gy += yStep) {
+                const label = gy % 1 === 0 ? gy.toString() : gy.toFixed(1);
+                ctx.fillText(label, pad.left - 8, toY(gy) + 4);
+            }
+            ctx.save();
+            ctx.translate(12, pad.top + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#888';
+            ctx.font = '11px sans-serif';
+            ctx.fillText('distancia', 0, 0);
+            ctx.restore();
+
+            // Draw log(2) reference line for JSD saturation
+            const log2 = Math.log(2);
+            if (log2 < yMax) {
+                ctx.setLineDash([3, 5]);
+                ctx.strokeStyle = 'rgba(168, 85, 247, 0.35)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, toY(log2));
+                ctx.lineTo(pad.left + plotW, toY(log2));
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.6)';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('log(2) = 0.693', pad.left + plotW - 90, toY(log2) - 5);
+            }
+
+            // Helper to draw a metric curve (clipped to plot area)
+            function drawCurve(vals, color, lineWidth) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(pad.left, pad.top, plotW, plotH);
+                ctx.clip();
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+                ctx.beginPath();
+                let started = false;
+                for (let i = 0; i <= thetaSteps; i++) {
+                    const t = xMin + (xMax - xMin) * i / thetaSteps;
+                    const px = toX(t);
+                    const py = toY(vals[i]);
+                    if (!started) { ctx.moveTo(px, py); started = true; }
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw the three curves
+            drawCurve(klVals, '#ff9f43', 2.5);
+            drawCurve(jsdVals, '#a855f7', 2.5);
+            drawCurve(w1Vals, '#22c55e', 2.5);
+
+            // If KL goes off-chart, draw an arrow indicating it continues upward
+            const klAtTheta = klDivergence(theta, epsilon);
+            if (klAtTheta > yMax) {
+                ctx.fillStyle = '#ff9f43';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                const arrowX = toX(theta);
+                ctx.fillText('KL = ' + (klAtTheta > 1000 ? 'inf' : klAtTheta.toFixed(1)), arrowX, pad.top + 14);
+                // Arrow pointing up
+                ctx.beginPath();
+                ctx.moveTo(arrowX, pad.top + 18);
+                ctx.lineTo(arrowX - 5, pad.top + 26);
+                ctx.lineTo(arrowX + 5, pad.top + 26);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Vertical dashed line at current theta
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(toX(theta), pad.top);
+            ctx.lineTo(toX(theta), pad.top + plotH);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Dots on each curve at current theta
+            const currentKL = klDivergence(theta, epsilon);
+            const currentJSD = jsdDivergence(theta, epsilon);
+            const currentW1 = w1Distance(theta);
+
+            function drawDot(val, color) {
+                const px = toX(theta);
+                const py = Math.max(pad.top, toY(val));
+                if (py >= pad.top && py <= pad.top + plotH) {
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            drawDot(currentW1, '#22c55e');
+            drawDot(currentJSD, '#a855f7');
+            drawDot(currentKL, '#ff9f43');
+
+            // ======================== GRADIENT ARROWS ========================
+            // Show gradient arrows at current theta for each metric
+            const arrowBaseY = pad.top + plotH + 24;
+            const arrowLen = 18;
+
+            // KL gradient: d/dtheta [(theta)^2 / (2*eps^2)] = theta / eps^2
+            const klGrad = -theta / (epsilon * epsilon); // negative = direction to decrease
+            // W1 gradient: d/dtheta |theta| = sign(theta), direction to decrease = -sign(theta)
+            const w1Grad = theta === 0 ? 0 : -Math.sign(theta);
+            // JSD gradient (numerical)
+            const jsdGrad = -jsdGradient(theta, epsilon);
+
+            // Normalize and draw arrows
+            function drawGradientArrow(grad, color, label, yOffset) {
+                const baseY = arrowBaseY + yOffset;
+                const centerX = toX(theta);
+
+                // Determine arrow magnitude (visual)
+                let magnitude = Math.min(Math.abs(grad), 5);
+                // Normalize: arrow from 0 to arrowLen px
+                let arrowPx = (magnitude / 5) * arrowLen;
+                if (arrowPx < 2) arrowPx = 2;
+                const dir = grad > 0 ? 1 : grad < 0 ? -1 : 0;
+
+                // Opacity based on gradient magnitude
+                let opacity = Math.min(1.0, Math.abs(grad) / 2);
+                if (opacity < 0.08) opacity = 0.08;
+
+                ctx.globalAlpha = opacity;
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                ctx.lineWidth = 2.5;
+
+                if (dir !== 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, baseY);
+                    ctx.lineTo(centerX + dir * arrowPx, baseY);
+                    ctx.stroke();
+
+                    // Arrowhead
+                    ctx.beginPath();
+                    ctx.moveTo(centerX + dir * arrowPx, baseY);
+                    ctx.lineTo(centerX + dir * arrowPx - dir * 5, baseY - 3);
+                    ctx.lineTo(centerX + dir * arrowPx - dir * 5, baseY + 3);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Zero gradient: draw a small dot
+                    ctx.beginPath();
+                    ctx.arc(centerX, baseY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Only draw arrows if theta != 0 (at the optimum there's nothing to show)
+            if (Math.abs(theta) > 0.05) {
+                drawGradientArrow(klGrad, '#ff9f43', 'KL', 0);
+                drawGradientArrow(jsdGrad, '#a855f7', 'JSD', 10);
+                drawGradientArrow(w1Grad, '#22c55e', 'W1', 20);
+
+                // Label
+                ctx.fillStyle = '#555';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('gradientes', toX(theta) + 25, arrowBaseY + 12);
+            }
+
+            // Highlight JSD dead zone when epsilon is small
+            if (epsilon <= 0.3 && Math.abs(theta) > 2 * epsilon) {
+                // Shade the region where JSD is saturated
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.06)';
+                // Find bounds where JSD is close to log(2)
+                const satThreshold = log2 * 0.95;
+                let leftBound = null, rightBound = null;
+                for (let i = 0; i <= thetaSteps; i++) {
+                    const t = xMin + (xMax - xMin) * i / thetaSteps;
+                    if (jsdVals[i] >= satThreshold) {
+                        if (leftBound === null) leftBound = t;
+                        rightBound = t;
+                    }
+                }
+                if (leftBound !== null && rightBound !== null && Math.abs(rightBound - leftBound) > 0.5) {
+                    // Shade regions away from center
+                    ctx.fillStyle = 'rgba(168, 85, 247, 0.08)';
+                    // Left dead zone
+                    if (leftBound < -epsilon * 3) {
+                        ctx.fillRect(toX(xMin), pad.top, toX(leftBound) - toX(xMin), plotH);
+                    }
+                    // Right dead zone
+                    if (rightBound > epsilon * 3) {
+                        ctx.fillRect(toX(rightBound), pad.top, toX(xMax) - toX(rightBound), plotH);
+                    }
+
+                    // Label
+                    ctx.fillStyle = 'rgba(168, 85, 247, 0.5)';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    if (theta > epsilon * 3) {
+                        ctx.fillText('zona muerta JSD', toX(Math.min(theta, 4)), pad.top + plotH / 2);
+                        ctx.fillText('(gradiente ~ 0)', toX(Math.min(theta, 4)), pad.top + plotH / 2 + 14);
+                    } else if (theta < -epsilon * 3) {
+                        ctx.fillText('zona muerta JSD', toX(Math.max(theta, -4)), pad.top + plotH / 2);
+                        ctx.fillText('(gradiente ~ 0)', toX(Math.max(theta, -4)), pad.top + plotH / 2 + 14);
+                    }
+                }
+            }
+        }
+
+        // ======================== UPDATE DISPLAYS ========================
+        function updateDisplays() {
+            const kl = klDivergence(theta, epsilon);
+            const jsd = jsdDivergence(theta, epsilon);
+            const w1 = w1Distance(theta);
+
+            document.getElementById('theta-val').textContent = theta.toFixed(2);
+            document.getElementById('eps-val').textContent = epsilon.toFixed(2);
+
+            // Format KL
+            if (kl > 9999) {
+                document.getElementById('kl-display').textContent = 'inf';
+            } else if (kl > 100) {
+                document.getElementById('kl-display').textContent = kl.toFixed(0);
+            } else {
+                document.getElementById('kl-display').textContent = kl.toFixed(2);
+            }
+
+            document.getElementById('jsd-display').textContent = jsd.toFixed(3);
+            document.getElementById('w1-display').textContent = w1.toFixed(2);
+
+            // Update insight box
+            const box = document.getElementById('insightBox');
+            const title = document.getElementById('insightTitle');
+            const text = document.getElementById('insightText');
+
+            if (epsilon > 1.0) {
+                box.className = 'highlight-box insight-safe';
+                title.textContent = 'Todas las metricas funcionan bien';
+                text.textContent = 'Con gaussianas anchas (epsilon > 1), las tres metricas dan gradientes utiles. El discriminador de la GAN puede guiar al generador sin importar que divergencia use.';
+            } else if (epsilon > 0.3) {
+                box.className = 'highlight-box insight-warning';
+                title.textContent = 'Empiezan los problemas';
+                text.textContent = 'La KL crece rapidamente. La JSD empieza a saturarse. Wasserstein sigue siendo lineal. A medida que epsilon disminuye, el entrenamiento con KL o JSD se vuelve mas dificil.';
+            } else {
+                box.className = 'highlight-box insight-danger';
+                title.textContent = 'Problema! Gradientes muertos';
+                text.innerHTML = 'La KL diverge a infinito. La JSD se aplana en log(2) &mdash; <strong>gradiente cero</strong>. Solo Wasserstein da un gradiente util para mover theta hacia theta_0. Esta es la motivacion central de la Wasserstein GAN (WGAN).';
+            }
+        }
+
+        // ======================== EVENT HANDLERS ========================
+        function updateAll() {
+            drawDistributions();
+            drawMetrics();
+            updateDisplays();
+        }
+
+        document.getElementById('theta-slider').addEventListener('input', function() {
+            theta = parseFloat(this.value);
+            updateAll();
+        });
+
+        document.getElementById('eps-slider').addEventListener('input', function() {
+            epsilon = parseFloat(this.value);
+            updateAll();
+        });
+
+        // ======================== INIT ========================
+        window.addEventListener('load', updateAll);
+        window.addEventListener('resize', updateAll);
+    </script>
+</body>
+</html>

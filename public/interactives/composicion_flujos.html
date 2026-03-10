@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Composicion de Flujos Planares</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific overrides and layout */
+        body { max-width: 1100px; }
+        h1 { margin-bottom: 5px; }
+        .subtitle { color: var(--text-dim); margin-bottom: 20px; }
+        .formula { margin-bottom: 20px; line-height: 1.5; font-size: 0.9em; }
+        .panels-container {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            background: var(--panel);
+            border-radius: 10px;
+            padding: 10px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        .panel h3 {
+            color: var(--text-dim);
+            font-size: 0.85em;
+            margin: 0 0 8px 0;
+            font-weight: normal;
+        }
+        .panel h3 .layer-num { color: #6496ff; font-weight: bold; }
+        .panel canvas {
+            width: 160px;
+            height: 160px;
+            display: block;
+            border-radius: 6px;
+        }
+        .arrow {
+            display: flex;
+            align-items: center;
+            color: #555;
+            font-size: 1.5em;
+            flex-shrink: 0;
+            padding-top: 20px;
+        }
+        .controls { border-radius: 10px; }
+        .control-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .control { flex: 1; min-width: 180px; }
+        button {
+            background: var(--accent);
+            border: none;
+            white-space: nowrap;
+        }
+        button:hover { background: #d63851; border-color: #d63851; }
+        .insight {
+            background: rgba(233, 69, 96, 0.1);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 15px 20px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        .insight strong { color: var(--accent); }
+        .legend { gap: 15px; margin-bottom: 15px; }
+        .legend-item { gap: 6px; }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Composicion de Flujos Planares</h1>
+    <p class="subtitle">Como apilar transformaciones simples convierte una Gaussiana en una distribucion compleja</p>
+
+    <div class="formula">
+        Capa k: &nbsp; x = z + u<sub>k</sub> · tanh(w<sub>k</sub><sup>T</sup> z + b<sub>k</sub>)
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        Flujo completo: f = f<sub>K</sub> ∘ f<sub>K-1</sub> ∘ ··· ∘ f<sub>1</sub>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-dot" style="background: hsl(0, 80%, 65%)"></div>
+            <span>Angulo 0°</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: hsl(60, 80%, 65%)"></div>
+            <span>60°</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: hsl(120, 80%, 65%)"></div>
+            <span>120°</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: hsl(200, 80%, 65%)"></div>
+            <span>200°</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: hsl(280, 80%, 65%)"></div>
+            <span>280°</span>
+        </div>
+        <div class="legend-item" style="color: #aaa; font-style: italic;">
+            <span>Color = angulo original atan2(z₂, z₁)</span>
+        </div>
+    </div>
+
+    <div class="panels-container" id="panels-container">
+        <!-- Paneles generados dinamicamente -->
+    </div>
+
+    <div class="controls">
+        <div class="control-row">
+            <div class="control">
+                <label>Numero de capas: <span class="value" id="layers-val">4</span></label>
+                <input type="range" id="layers" min="1" max="8" step="1" value="4">
+            </div>
+            <div class="control">
+                <label>Puntos: <span class="value" id="npoints-val">800</span></label>
+                <input type="range" id="npoints" min="200" max="2000" step="100" value="800">
+            </div>
+            <button id="btn-randomize">Aleatorizar parametros</button>
+        </div>
+        <div class="control-row" style="margin-top: 10px;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="show-density"> Mostrar densidad (KDE)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="color-logdet"> Color por log|det J|
+            </label>
+        </div>
+    </div>
+
+    <div class="insight" id="insight-box">
+        Con <strong>4 capas</strong> de flujo planar, una Gaussiana 2D estandar se transforma progresivamente. Cada capa "dobla" el espacio a lo largo de un hiperplano diferente. Observa como los colores (que identifican la region original) se reorganizan capa a capa.
+    </div>
+
+    <script type="module">
+        import { randn } from './shared/math.js';
+
+        // --- Estado ---
+        let numLayers = 4;
+        let numPoints = 800;
+        let showDensity = false;
+        let colorLogDet = false;
+        const MAX_LAYERS = 8;
+
+        // Parametros de cada capa: u (2D), w (2D), b (escalar)
+        let layerParams = [];
+
+        // Puntos base
+        let basePoints = [];  // {z1, z2, hue}
+
+        // --- Utilidades ---
+        function tanh(x) {
+            if (x > 20) return 1;
+            if (x < -20) return -1;
+            const e2x = Math.exp(2 * x);
+            return (e2x - 1) / (e2x + 1);
+        }
+
+        function generateBasePoints() {
+            basePoints = [];
+            for (let i = 0; i < numPoints; i++) {
+                const z1 = randn(), z2 = randn();
+                // Hue basado en angulo original
+                const angle = Math.atan2(z2, z1);
+                const hue = ((angle / Math.PI * 180) + 360) % 360;
+                basePoints.push({ z1, z2, hue });
+            }
+        }
+
+        function randomizeParams() {
+            layerParams = [];
+            for (let k = 0; k < MAX_LAYERS; k++) {
+                // Generar u, w aleatorios
+                let u1 = randn() * 0.8, u2 = randn() * 0.8;
+                let w1 = randn() * 0.8, w2 = randn() * 0.8;
+                let b = randn() * 0.5;
+
+                // Proyeccion para garantizar invertibilidad:
+                // Necesitamos: w^T u >= -1
+                // Si no se cumple, proyectamos u
+                const wtu = w1 * u1 + w2 * u2;
+                const wNorm2 = w1 * w1 + w2 * w2;
+                if (wNorm2 > 0) {
+                    const mwtu = -1 + Math.log(1 + Math.exp(wtu));  // softplus
+                    if (wtu < mwtu) {
+                        // Proyectar: u = u + (m(w^Tu) - w^Tu) * w / ||w||^2
+                        const correction = (mwtu - wtu) / wNorm2;
+                        u1 += correction * w1;
+                        u2 += correction * w2;
+                    }
+                }
+
+                layerParams.push({ u1, u2, w1, w2, b });
+            }
+        }
+
+        // Aplicar una capa planar a un punto
+        function applyPlanarFlow(z1, z2, params) {
+            const pre = params.w1 * z1 + params.w2 * z2 + params.b;
+            const h = tanh(pre);
+            return {
+                z1: z1 + params.u1 * h,
+                z2: z2 + params.u2 * h
+            };
+        }
+
+        // log|det J| for one planar layer: log|1 + u^T * h'(w^T z + b) * w|
+        function logDetLayer(z1, z2, params) {
+            const pre = params.w1 * z1 + params.w2 * z2 + params.b;
+            const hPrime = 1 - tanh(pre) ** 2;  // dtanh/dx
+            const det = 1 + (params.u1 * params.w1 + params.u2 * params.w2) * hPrime;
+            return Math.log(Math.abs(det) + 1e-12);
+        }
+
+        // Aplicar k capas a todos los puntos, tracking log|det J|
+        function transformPoints(k) {
+            let points = basePoints.map(p => ({ z1: p.z1, z2: p.z2, hue: p.hue, logDetJ: 0 }));
+            for (let i = 0; i < k; i++) {
+                points = points.map(p => {
+                    const ld = logDetLayer(p.z1, p.z2, layerParams[i]);
+                    const t = applyPlanarFlow(p.z1, p.z2, layerParams[i]);
+                    return { z1: t.z1, z2: t.z2, hue: p.hue, logDetJ: p.logDetJ + ld };
+                });
+            }
+            return points;
+        }
+
+        // Simple grid-based KDE
+        function computeKDE(points, gridSize, cx, cy, lo, hi) {
+            const range = hi - lo;
+            const cellSize = range / gridSize;
+            const bw = range / gridSize * 1.5;  // bandwidth
+            const bw2 = bw * bw;
+            const grid = new Float32Array(gridSize * gridSize);
+            for (const p of points) {
+                const gi = Math.floor((p.z1 - cx - lo) / cellSize);
+                const gj = Math.floor((p.z2 - cy - lo) / cellSize);
+                const spread = 2;
+                for (let di = -spread; di <= spread; di++) {
+                    for (let dj = -spread; dj <= spread; dj++) {
+                        const ci = gi + di, cj = gj + dj;
+                        if (ci < 0 || ci >= gridSize || cj < 0 || cj >= gridSize) continue;
+                        const gx = cx + lo + (ci + 0.5) * cellSize;
+                        const gy = cy + lo + (cj + 0.5) * cellSize;
+                        const dx = p.z1 - gx, dy = p.z2 - gy;
+                        grid[cj * gridSize + ci] += Math.exp(-(dx * dx + dy * dy) / (2 * bw2));
+                    }
+                }
+            }
+            return grid;
+        }
+
+        // --- Canvas ---
+        function setupCanvas(canvas, size) {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            return ctx;
+        }
+
+        function drawPanel(canvas, points, size) {
+            const ctx = setupCanvas(canvas, size);
+
+            // Fondo
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, size, size);
+
+            // Determinar limites
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const p of points) {
+                if (p.z1 < minX) minX = p.z1;
+                if (p.z1 > maxX) maxX = p.z1;
+                if (p.z2 < minY) minY = p.z2;
+                if (p.z2 > maxY) maxY = p.z2;
+            }
+            // Margen simetrico
+            const rangeX = maxX - minX || 1;
+            const rangeY = maxY - minY || 1;
+            const range = Math.max(rangeX, rangeY) * 1.2;
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+            const lo = -range / 2;
+            const hi = range / 2;
+
+            const margin = 8;
+            const plotSize = size - 2 * margin;
+            const toX = (v) => margin + ((v - cx - lo) / (hi - lo)) * plotSize;
+            const toY = (v) => margin + plotSize - ((v - cy - lo) / (hi - lo)) * plotSize;
+
+            // KDE density heatmap (behind points)
+            if (showDensity) {
+                const G = 32;
+                const grid = computeKDE(points, G, cx, cy, lo, hi);
+                let maxVal = 0;
+                for (let i = 0; i < grid.length; i++) if (grid[i] > maxVal) maxVal = grid[i];
+                if (maxVal > 0) {
+                    const cellW = plotSize / G;
+                    for (let gj = 0; gj < G; gj++) {
+                        for (let gi = 0; gi < G; gi++) {
+                            const v = grid[gj * G + gi] / maxVal;
+                            if (v < 0.01) continue;
+                            // Inferno-ish colormap: black -> purple -> orange -> yellow
+                            const r = Math.min(255, Math.floor(v * 3 * 255));
+                            const g = Math.min(255, Math.floor(Math.max(0, v - 0.33) * 3 * 200));
+                            const b = Math.min(255, Math.floor(Math.max(0, 0.5 - Math.abs(v - 0.4)) * 4 * 255));
+                            ctx.fillStyle = `rgba(${r},${g},${b},0.7)`;
+                            const px = margin + gi * cellW;
+                            const py = margin + (G - 1 - gj) * cellW;
+                            ctx.fillRect(px, py, cellW + 0.5, cellW + 0.5);
+                        }
+                    }
+                }
+            }
+
+            // Ejes ligeros en el centro
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(toX(cx + lo), toY(cy));
+            ctx.lineTo(toX(cx + hi), toY(cy));
+            ctx.moveTo(toX(cx), toY(cy + lo));
+            ctx.lineTo(toX(cx), toY(cy + hi));
+            ctx.stroke();
+
+            // Range labels in corners
+            const rLo = (cx + lo).toFixed(1);
+            const rHi = (cx + hi).toFixed(1);
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(rLo, margin + 2, size - margin - 2);
+            ctx.textAlign = 'right';
+            ctx.fillText(rHi, size - margin - 2, size - margin - 2);
+
+            // Compute log|det J| range for color mapping
+            let ldMin = Infinity, ldMax = -Infinity;
+            if (colorLogDet) {
+                for (const p of points) {
+                    if (p.logDetJ < ldMin) ldMin = p.logDetJ;
+                    if (p.logDetJ > ldMax) ldMax = p.logDetJ;
+                }
+            }
+            const ldRange = (ldMax - ldMin) || 1;
+
+            // Dibujar puntos
+            const radius = numPoints > 1000 ? 1.2 : 1.8;
+            for (const p of points) {
+                const px = toX(p.z1);
+                const py = toY(p.z2);
+                if (px < 0 || px > size || py < 0 || py > size) continue;
+                if (colorLogDet) {
+                    // Blue (low density / expanded) -> Red (high density / compressed)
+                    const t = (p.logDetJ - ldMin) / ldRange;
+                    const hue = (1 - t) * 240;  // 240=blue -> 0=red
+                    ctx.fillStyle = `hsla(${hue}, 85%, 55%, 0.8)`;
+                } else {
+                    ctx.fillStyle = `hsla(${p.hue}, 80%, 65%, 0.75)`;
+                }
+                ctx.beginPath();
+                ctx.arc(px, py, radius, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        // --- UI: Generar paneles ---
+        function buildPanels() {
+            const container = document.getElementById('panels-container');
+            container.innerHTML = '';
+
+            for (let k = 0; k <= numLayers; k++) {
+                if (k > 0) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'arrow';
+                    arrow.textContent = '→';
+                    container.appendChild(arrow);
+                }
+
+                const panel = document.createElement('div');
+                panel.className = 'panel';
+
+                const title = document.createElement('h3');
+                if (k === 0) {
+                    title.innerHTML = 'z ~ N(0, I)';
+                } else {
+                    title.innerHTML = `Capa <span class="layer-num">${k}</span>`;
+                }
+                panel.appendChild(title);
+
+                const canvas = document.createElement('canvas');
+                canvas.id = `panel-${k}`;
+                canvas.style.width = '160px';
+                canvas.style.height = '160px';
+                panel.appendChild(canvas);
+
+                container.appendChild(panel);
+            }
+        }
+
+        // --- Dibujar todo ---
+        function drawAll() {
+            buildPanels();
+
+            for (let k = 0; k <= numLayers; k++) {
+                const canvas = document.getElementById(`panel-${k}`);
+                if (!canvas) continue;
+                const points = transformPoints(k);
+                drawPanel(canvas, points, 160);
+            }
+
+            updateInsight();
+        }
+
+        function updateInsight() {
+            const box = document.getElementById('insight-box');
+            if (numLayers === 1) {
+                box.innerHTML = 'Con <strong>1 capa</strong>, el flujo planar "dobla" la Gaussiana a lo largo de un solo hiperplano. El resultado es ligeramente no-Gaussiano pero aun simple.';
+            } else if (numLayers <= 3) {
+                box.innerHTML = `Con <strong>${numLayers} capas</strong>, la distribucion empieza a mostrar formas mas interesantes. Cada capa dobla el espacio en una direccion diferente. Observa como los colores se reorganizan.`;
+            } else if (numLayers <= 5) {
+                box.innerHTML = `Con <strong>${numLayers} capas</strong>, la distribucion puede volverse <strong>multimodal</strong> (varios grupos separados). Los colores muestran que regiones que estaban juntas en el espacio original ahora estan separadas — el flujo "estira" y "dobla" el espacio repetidamente.`;
+            } else {
+                box.innerHTML = `Con <strong>${numLayers} capas</strong>, el flujo tiene alta expresividad. Puede modelar distribuciones muy complejas. Sin embargo, en la practica hay un compromiso: mas capas = mas coste computacional y mas dificil de entrenar.`;
+            }
+        }
+
+        // --- Controles ---
+        function setupControls() {
+            const layerSlider = document.getElementById('layers');
+            const layerVal = document.getElementById('layers-val');
+            const npointSlider = document.getElementById('npoints');
+            const npointVal = document.getElementById('npoints-val');
+            const btnRand = document.getElementById('btn-randomize');
+
+            layerSlider.addEventListener('input', () => {
+                numLayers = parseInt(layerSlider.value);
+                layerVal.textContent = numLayers;
+                drawAll();
+            });
+
+            npointSlider.addEventListener('input', () => {
+                numPoints = parseInt(npointSlider.value);
+                npointVal.textContent = numPoints;
+                generateBasePoints();
+                drawAll();
+            });
+
+            btnRand.addEventListener('click', () => {
+                randomizeParams();
+                drawAll();
+            });
+
+            document.getElementById('show-density').addEventListener('change', (e) => {
+                showDensity = e.target.checked;
+                drawAll();
+            });
+
+            document.getElementById('color-logdet').addEventListener('change', (e) => {
+                colorLogDet = e.target.checked;
+                drawAll();
+            });
+        }
+
+        // --- Init ---
+        window.addEventListener('load', () => {
+            randomizeParams();
+            generateBasePoints();
+            setupControls();
+            drawAll();
+        });
+
+        window.addEventListener('resize', drawAll);
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="61" fill="#0f172a"/>
+  <text x="50%" y="42%" dominant-baseline="middle" text-anchor="middle"
+        font-family="system-ui,sans-serif" font-weight="800" font-size="112" fill="#818cf8">XCS</text>
+  <text x="50%" y="68%" dominant-baseline="middle" text-anchor="middle"
+        font-family="system-ui,sans-serif" font-weight="700" font-size="56" fill="#94a3b8">236</text>
+</svg>

@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDPM vs DDIM: Trayectorias de Sampling</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific styles */
+        .canvases-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .canvas-container {
+            background: var(--canvas); border-radius: 8px; padding: 10px;
+        }
+        .canvas-container h3 {
+            text-align: center; margin: 0 0 8px 0;
+        }
+        canvas { aspect-ratio: 1; border-radius: 4px; }
+        .controls-row:last-child { margin-bottom: 0; }
+        button.primary { background: var(--accent); border-color: var(--accent); }
+        button.primary:hover { background: #d63851; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .slider-group {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .slider-group label { white-space: nowrap; }
+        input[type="range"] { width: 120px; }
+        .value { min-width: 35px; text-align: right; }
+        .stats-table {
+            width: 100%; border-collapse: collapse; margin-top: 10px;
+        }
+        .stats-table th, .stats-table td {
+            padding: 8px 12px; text-align: center; font-size: 0.9em;
+        }
+        .stats-table th {
+            color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border);
+        }
+        .stats-table td { color: #ccc; }
+        .stats-table td:first-child { color: var(--text-muted); text-align: left; font-weight: 500; }
+        .stats-table .col-ddpm { color: #ff7b54; }
+        .stats-table .col-ddim { color: #54c6ff; }
+        .step-info {
+            text-align: center; font-size: 0.95em; color: #ccc; margin-top: 10px;
+        }
+        .step-info .step-number { color: var(--accent); font-weight: bold; }
+        @media (max-width: 600px) {
+            .canvases-row { grid-template-columns: 1fr; }
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .slider-group { justify-content: space-between; }
+            input[type="range"] { flex: 1; }
+        }
+    </style>
+</head>
+<body>
+    <h1>DDPM vs DDIM: Trayectorias de Sampling</h1>
+    <p class="subtitle">Desde el mismo ruido, dos caminos distintos hacia una muestra generada</p>
+
+    <!-- Controles -->
+    <div class="controls">
+        <div class="controls-row">
+            <button class="primary" id="btnGenerar">Generar</button>
+            <button id="btn10">10 trayectorias</button>
+        </div>
+        <div class="controls-row">
+            <div class="slider-group">
+                <label>Velocidad:</label>
+                <input type="range" id="sliderSpeed" min="1" max="10" value="5">
+                <span class="value" id="valSpeed">5</span>
+            </div>
+            <div class="slider-group">
+                <label>Pasos DDIM:</label>
+                <input type="range" id="sliderSteps" min="0" max="3" value="0" step="1">
+                <span class="value" id="valSteps">100</span>
+            </div>
+            <div class="slider-group">
+                <label>&eta; (DDIM):</label>
+                <input type="range" id="sliderEta" min="0" max="1" value="0" step="0.05">
+                <span class="value" id="valEta">0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvases -->
+    <div class="section">
+        <div class="canvases-row">
+            <div class="canvas-container">
+                <h3 style="color: #ff7b54;">DDPM (Estocastico)</h3>
+                <canvas id="canvasDDPM"></canvas>
+            </div>
+            <div class="canvas-container">
+                <h3 style="color: #54c6ff;">DDIM (Determinista)</h3>
+                <canvas id="canvasDDIM"></canvas>
+            </div>
+        </div>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(to right, #ff4444, #4444ff);"></div>
+                <span>Trayectoria (rojo=t=T, azul=t=0)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: rgba(255,255,255,0.15);"></div>
+                <span>Contornos de la distribucion objetivo</span>
+            </div>
+        </div>
+        <div class="step-info" id="stepInfo">
+            Haz clic en <strong>Generar</strong> para iniciar
+        </div>
+    </div>
+
+    <!-- Estadisticas -->
+    <div class="section">
+        <h2>Comparacion</h2>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th style="color: #ff7b54;">DDPM</th>
+                    <th style="color: #54c6ff;">DDIM</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Pasos</td>
+                    <td class="col-ddpm">100</td>
+                    <td class="col-ddim" id="statSteps">100</td>
+                </tr>
+                <tr>
+                    <td>&eta;</td>
+                    <td class="col-ddpm">1.0</td>
+                    <td class="col-ddim" id="statEta">0.00</td>
+                </tr>
+                <tr>
+                    <td>Determinista</td>
+                    <td class="col-ddpm">No</td>
+                    <td class="col-ddim" id="statDet">Si</td>
+                </tr>
+                <tr>
+                    <td>Misma semilla &rarr; mismo resultado</td>
+                    <td class="col-ddpm">No</td>
+                    <td class="col-ddim" id="statSeed">Si</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="insight-box">
+            <div class="insight-label">Insight</div>
+            <div class="insight-text" id="insightText">
+                DDPM anade ruido en cada paso reverse (trayectoria zigzagueante). DDIM es determinista (trayectoria suave). Ambos convergen a muestras de alta calidad.
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+    import { randn, gaussian2D } from './shared/math.js';
+    import { setupCanvas } from './shared/canvas.js';
+
+    // =====================================================================
+    // Configuration
+    // =====================================================================
+
+    const T_TOTAL = 100;
+    const STEP_OPTIONS = [100, 50, 20, 10];
+    const BETA_MIN = 0.001;
+    const BETA_MAX = 0.03;
+
+    // Target distribution: mixture of 3 Gaussians
+    const MODES = [
+        { mx: -2, my: 0,  sigma: 0.6, weight: 1/3 },
+        { mx: 1,  my: 2,  sigma: 0.6, weight: 1/3 },
+        { mx: 1,  my: -2, sigma: 0.6, weight: 1/3 },
+    ];
+
+    // View bounds for the 2D space
+    const VIEW = { xMin: -4.5, xMax: 4.5, yMin: -4.5, yMax: 4.5 };
+
+    // Pre-compute beta schedule and alpha schedule
+    const betas = [];
+    const alphas = [];
+    const alpha_bars = [];
+    for (let t = 0; t < T_TOTAL; t++) {
+        const beta = BETA_MIN + (BETA_MAX - BETA_MIN) * t / (T_TOTAL - 1);
+        betas.push(beta);
+        alphas.push(1 - beta);
+    }
+    // alpha_bar_t = product of alphas from 0 to t
+    let cumProd = 1;
+    for (let t = 0; t < T_TOTAL; t++) {
+        cumProd *= alphas[t];
+        alpha_bars.push(cumProd);
+    }
+
+    // =====================================================================
+    // Math helpers
+    // =====================================================================
+
+    function targetDensity(x, y) {
+        let p = 0;
+        for (const m of MODES) {
+            p += m.weight * gaussian2D(x, y, m.mx, m.my, m.sigma);
+        }
+        return p;
+    }
+
+    // Score of the target mixture: nabla_x log p(x)
+    // = sum_k w_k * N(x|mu_k,sigma_k) * (mu_k - x) / sigma_k^2  /  sum_k w_k * N(x|mu_k,sigma_k)
+    function targetScore(x, y) {
+        let totalP = 0;
+        let sx = 0, sy = 0;
+        for (const m of MODES) {
+            const p = m.weight * gaussian2D(x, y, m.mx, m.my, m.sigma);
+            const s2 = m.sigma * m.sigma;
+            totalP += p;
+            sx += p * (m.mx - x) / s2;
+            sy += p * (m.my - y) / s2;
+        }
+        if (totalP < 1e-30) return { sx: 0, sy: 0 };
+        return { sx: sx / totalP, sy: sy / totalP };
+    }
+
+    // Noise-conditioned score for the diffusion process.
+    // At timestep t, x_t comes from q(x_t|x_0) = N(sqrt(alpha_bar_t)*x_0, (1-alpha_bar_t)*I)
+    // The marginal q(x_t) is itself a mixture of Gaussians with inflated variances.
+    // Score of q(x_t) = nabla log q(x_t)
+    function noisyScore(x, y, t) {
+        const ab = alpha_bars[t];
+        const sqrtAb = Math.sqrt(ab);
+        const noiseVar = 1 - ab;
+
+        let totalP = 0;
+        let sx = 0, sy = 0;
+        for (const m of MODES) {
+            // q(x_t) marginal component: N(sqrt(ab)*mu_k, ab*sigma_k^2 + (1-ab))
+            const compVar = ab * m.sigma * m.sigma + noiseVar;
+            const mx = sqrtAb * m.mx;
+            const my_val = sqrtAb * m.my;
+            const p = m.weight * gaussian2D(x, y, mx, my_val, Math.sqrt(compVar));
+            totalP += p;
+            sx += p * (mx - x) / compVar;
+            sy += p * (my_val - y) / compVar;
+        }
+        if (totalP < 1e-30) return { sx: 0, sy: 0 };
+        return { sx: sx / totalP, sy: sy / totalP };
+    }
+
+    // =====================================================================
+    // Sampling: generate trajectories
+    // =====================================================================
+
+    // DDPM reverse step: from x_t to x_{t-1}
+    // x_{t-1} = (1/sqrt(alpha_t)) * (x_t + beta_t * score(x_t, t)) + sqrt(beta_t) * z
+    // More precisely using the standard DDPM formulation:
+    // x_{t-1} = 1/sqrt(alpha_t) * (x_t - beta_t/sqrt(1-alpha_bar_t) * eps) + sigma_t * z
+    // But here we use the score-based form: score = -eps / sqrt(1-alpha_bar_t)
+    // so: x_{t-1} = 1/sqrt(alpha_t) * (x_t + beta_t * score(x_t,t)) + sqrt(beta_t) * z
+    function ddpmStep(x, y, t) {
+        const score = noisyScore(x, y, t);
+        const sqrtAlpha = Math.sqrt(alphas[t]);
+        const beta = betas[t];
+
+        const meanX = (x + beta * score.sx) / sqrtAlpha;
+        const meanY = (y + beta * score.sy) / sqrtAlpha;
+
+        // Add noise (except at t=0)
+        const sigma = (t > 0) ? Math.sqrt(beta) : 0;
+        const nx = meanX + sigma * randn();
+        const ny = meanY + sigma * randn();
+
+        return { x: nx, y: ny };
+    }
+
+    // DDIM reverse step with eta parameter
+    // DDIM generalizes DDPM: eta=0 is deterministic, eta=1 recovers DDPM
+    function ddimStep(x, y, tFrom, tTo, eta) {
+        const score = noisyScore(x, y, tFrom);
+        const abFrom = alpha_bars[tFrom];
+        const abTo = (tTo >= 0) ? alpha_bars[tTo] : 1.0;
+
+        // Predicted x0 from score: x0_hat = (x_t + (1-ab_t)*score) / sqrt(ab_t)
+        const sqrtAbFrom = Math.sqrt(abFrom);
+        const oneMinusAbFrom = 1 - abFrom;
+
+        const x0hatX = (x + oneMinusAbFrom * score.sx) / sqrtAbFrom;
+        const x0hatY = (y + oneMinusAbFrom * score.sy) / sqrtAbFrom;
+
+        // DDIM formula
+        const sqrtAbTo = Math.sqrt(abTo);
+        const oneMinusAbTo = 1 - abTo;
+        const sqrtOneMinusAbFrom = Math.sqrt(oneMinusAbFrom);
+        const sqrtOneMinusAbTo = Math.sqrt(oneMinusAbTo);
+
+        // sigma_t for DDIM
+        const sigmaT = (tTo >= 0) ?
+            eta * Math.sqrt(oneMinusAbTo / oneMinusAbFrom) * Math.sqrt(1 - abFrom / abTo) : 0;
+
+        // Direction pointing to x_t
+        const dirCoeff = Math.sqrt(Math.max(0, oneMinusAbTo - sigmaT * sigmaT));
+
+        const predX = sqrtAbTo * x0hatX + dirCoeff * (x - sqrtAbFrom * x0hatX) / sqrtOneMinusAbFrom;
+        const predY = sqrtAbTo * x0hatY + dirCoeff * (y - sqrtAbFrom * x0hatY) / sqrtOneMinusAbFrom;
+
+        const nx = predX + sigmaT * randn();
+        const ny = predY + sigmaT * randn();
+
+        return { x: nx, y: ny };
+    }
+
+    function generateDDPMTrajectory(startX, startY) {
+        const traj = [{ x: startX, y: startY, t: T_TOTAL - 1 }];
+        let cx = startX, cy = startY;
+        for (let t = T_TOTAL - 1; t >= 1; t--) {
+            const next = ddpmStep(cx, cy, t);
+            cx = next.x; cy = next.y;
+            traj.push({ x: cx, y: cy, t: t - 1 });
+        }
+        return traj;
+    }
+
+    function generateDDIMTrajectory(startX, startY, numSteps, eta) {
+        // Build the timestep subsequence
+        const timesteps = [];
+        for (let i = 0; i < numSteps; i++) {
+            timesteps.push(Math.round((T_TOTAL - 1) * (numSteps - 1 - i) / (numSteps - 1)));
+        }
+        // timesteps goes from T-1 down to 0
+        // Actually let's make it properly: from high t to low t
+        timesteps.sort((a, b) => b - a);
+
+        const traj = [{ x: startX, y: startY, t: timesteps[0] }];
+        let cx = startX, cy = startY;
+        for (let i = 0; i < timesteps.length - 1; i++) {
+            const tFrom = timesteps[i];
+            const tTo = timesteps[i + 1];
+            const next = ddimStep(cx, cy, tFrom, tTo, eta);
+            cx = next.x; cy = next.y;
+            traj.push({ x: cx, y: cy, t: tTo });
+        }
+        return traj;
+    }
+
+    // =====================================================================
+    // Rendering
+    // =====================================================================
+
+    function toPixel(x, y, w, h) {
+        const px = (x - VIEW.xMin) / (VIEW.xMax - VIEW.xMin) * w;
+        const py = (1 - (y - VIEW.yMin) / (VIEW.yMax - VIEW.yMin)) * h;
+        return { px, py };
+    }
+
+    // Pre-compute contour data for the target distribution
+    let contourCache = null;
+    function computeContours(w, h) {
+        const res = 2; // pixel step
+        const cols = Math.ceil(w / res);
+        const rows = Math.ceil(h / res);
+        const data = new Float32Array(cols * rows);
+        let maxVal = 0;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = VIEW.xMin + (c * res / w) * (VIEW.xMax - VIEW.xMin);
+                const y = VIEW.yMax - (r * res / h) * (VIEW.yMax - VIEW.yMin);
+                const d = targetDensity(x, y);
+                data[r * cols + c] = d;
+                if (d > maxVal) maxVal = d;
+            }
+        }
+        return { data, cols, rows, res, maxVal };
+    }
+
+    function drawContours(ctx, w, h) {
+        if (!contourCache || contourCache.w !== w || contourCache.h !== h) {
+            contourCache = computeContours(w, h);
+            contourCache.w = w;
+            contourCache.h = h;
+        }
+        const { data, cols, rows, res, maxVal } = contourCache;
+
+        // Draw filled contour levels
+        const levels = [0.05, 0.15, 0.3, 0.5, 0.7, 0.85];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const v = data[r * cols + c] / maxVal;
+                if (v > 0.02) {
+                    const alpha = v * 0.18;
+                    ctx.fillStyle = `rgba(180, 180, 255, ${alpha})`;
+                    ctx.fillRect(c * res, r * res, res, res);
+                }
+            }
+        }
+
+        // Draw contour lines
+        const contourLevels = [0.1, 0.3, 0.5, 0.7, 0.9];
+        for (const level of contourLevels) {
+            const threshold = level * maxVal;
+            ctx.strokeStyle = `rgba(150, 150, 220, ${0.08 + level * 0.12})`;
+            ctx.lineWidth = 0.8;
+            // Simple marching: draw edges between above/below cells
+            for (let r = 0; r < rows - 1; r++) {
+                for (let c = 0; c < cols - 1; c++) {
+                    const v00 = data[r * cols + c];
+                    const v10 = data[r * cols + c + 1];
+                    const v01 = data[(r + 1) * cols + c];
+
+                    // Horizontal edge
+                    if ((v00 >= threshold) !== (v10 >= threshold)) {
+                        const frac = (threshold - v00) / (v10 - v00);
+                        const px = (c + frac) * res;
+                        const py = r * res;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 0.5, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    // Vertical edge
+                    if ((v00 >= threshold) !== (v01 >= threshold)) {
+                        const frac = (threshold - v00) / (v01 - v00);
+                        const px = c * res;
+                        const py = (r + frac) * res;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 0.5, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Draw mode centers
+        for (const m of MODES) {
+            const { px, py } = toPixel(m.mx, m.my, w, h);
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+
+    function trajectoryColor(fraction) {
+        // fraction: 0 = start (t=T, red), 1 = end (t=0, blue)
+        const r = Math.round(255 * (1 - fraction));
+        const g = Math.round(60 * fraction);
+        const b = Math.round(255 * fraction);
+        return { r, g, b };
+    }
+
+    function drawTrajectory(ctx, w, h, traj, totalPoints, highlightColor) {
+        if (!traj || traj.length < 2) return;
+
+        const n = Math.min(totalPoints, traj.length);
+        if (n < 2) {
+            // Just draw starting point
+            if (n === 1) {
+                const { px, py } = toPixel(traj[0].x, traj[0].y, w, h);
+                ctx.beginPath();
+                ctx.arc(px, py, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff4444';
+                ctx.fill();
+            }
+            return;
+        }
+
+        // Draw trail segments with color gradient
+        for (let i = 1; i < n; i++) {
+            const frac = i / (traj.length - 1);
+            const prevFrac = (i - 1) / (traj.length - 1);
+            const col = trajectoryColor(frac);
+            const alpha = 0.3 + 0.7 * frac; // older points dimmer
+
+            const p0 = toPixel(traj[i - 1].x, traj[i - 1].y, w, h);
+            const p1 = toPixel(traj[i].x, traj[i].y, w, h);
+
+            ctx.beginPath();
+            ctx.moveTo(p0.px, p0.py);
+            ctx.lineTo(p1.px, p1.py);
+            ctx.strokeStyle = `rgba(${col.r}, ${col.g}, ${col.b}, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // Draw small dots along the path
+        for (let i = 0; i < n; i++) {
+            const frac = i / (traj.length - 1);
+            const col = trajectoryColor(frac);
+            const { px, py } = toPixel(traj[i].x, traj[i].y, w, h);
+            const radius = (i === 0) ? 4 : 1.5;
+
+            ctx.beginPath();
+            ctx.arc(px, py, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+            ctx.fill();
+        }
+
+        // Highlight current point
+        if (n > 0) {
+            const last = traj[n - 1];
+            const { px, py } = toPixel(last.x, last.y, w, h);
+
+            // Glow
+            ctx.beginPath();
+            ctx.arc(px, py, 10, 0, Math.PI * 2);
+            ctx.fillStyle = highlightColor.replace(')', ', 0.2)').replace('rgb', 'rgba');
+            ctx.fill();
+
+            // Point
+            ctx.beginPath();
+            ctx.arc(px, py, 5, 0, Math.PI * 2);
+            ctx.fillStyle = highlightColor;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+    }
+
+    function drawMultipleTrajectories(ctx, w, h, trajs) {
+        for (let k = 0; k < trajs.length; k++) {
+            const traj = trajs[k];
+            if (!traj || traj.length < 2) continue;
+
+            const hue = (k / trajs.length) * 360;
+
+            for (let i = 1; i < traj.length; i++) {
+                const frac = i / (traj.length - 1);
+                const alpha = 0.2 + 0.5 * frac;
+
+                const p0 = toPixel(traj[i - 1].x, traj[i - 1].y, w, h);
+                const p1 = toPixel(traj[i].x, traj[i].y, w, h);
+
+                ctx.beginPath();
+                ctx.moveTo(p0.px, p0.py);
+                ctx.lineTo(p1.px, p1.py);
+                ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${alpha})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            // Start point
+            const start = traj[0];
+            const ps = toPixel(start.x, start.y, w, h);
+            ctx.beginPath();
+            ctx.arc(ps.px, ps.py, 3, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.8)`;
+            ctx.fill();
+
+            // End point
+            const end = traj[traj.length - 1];
+            const pe = toPixel(end.x, end.y, w, h);
+            ctx.beginPath();
+            ctx.arc(pe.px, pe.py, 4, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${hue}, 80%, 70%, 1)`;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+
+    function renderCanvas(canvasId, trajectories, animFrame, isMulti, highlightColor) {
+        const canvas = document.getElementById(canvasId);
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        // Background
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        // Contours
+        drawContours(ctx, w, h);
+
+        if (isMulti) {
+            drawMultipleTrajectories(ctx, w, h, trajectories);
+        } else if (trajectories.length > 0) {
+            drawTrajectory(ctx, w, h, trajectories[0], animFrame, highlightColor);
+        }
+    }
+
+    // =====================================================================
+    // Animation state
+    // =====================================================================
+
+    let ddpmTrajs = [];
+    let ddimTrajs = [];
+    let animFrame = 0;
+    let maxFrames = 0;
+    let animating = false;
+    let animId = null;
+    let isMultiMode = false;
+
+    function getSpeed() {
+        return parseInt(document.getElementById('sliderSpeed').value);
+    }
+
+    function getDDIMSteps() {
+        return STEP_OPTIONS[parseInt(document.getElementById('sliderSteps').value)];
+    }
+
+    function getEta() {
+        return parseFloat(document.getElementById('sliderEta').value);
+    }
+
+    function updateStats() {
+        const steps = getDDIMSteps();
+        const eta = getEta();
+        document.getElementById('statSteps').textContent = steps;
+        document.getElementById('statEta').textContent = eta.toFixed(2);
+        document.getElementById('statDet').textContent = (eta === 0) ? 'Si' : 'No';
+        document.getElementById('statSeed').textContent = (eta === 0) ? 'Si' : 'No';
+    }
+
+    function updateInsight() {
+        const eta = getEta();
+        const steps = getDDIMSteps();
+        const el = document.getElementById('insightText');
+
+        if (isMultiMode) {
+            if (eta === 0) {
+                el.textContent = 'Nota como las trayectorias de DDPM divergen (estocasticidad), mientras las de DDIM con \u03B7=0 son identicas para la misma semilla.';
+            } else {
+                el.textContent = 'Con \u03B7 > 0, DDIM tambien anade ruido en cada paso, asi que sus trayectorias tambien divergen. Con \u03B7=1, DDIM se comporta igual que DDPM.';
+            }
+        } else if (eta === 0 && steps < 100) {
+            el.textContent = 'DDIM con \u03B7=0 puede usar menos pasos porque su trayectoria es suave y predecible. Aqui usa solo ' + steps + ' pasos en vez de 100.';
+        } else if (eta > 0.5) {
+            el.textContent = 'Con \u03B7 alto, DDIM se vuelve estocastico como DDPM. Con \u03B7=1, ambos metodos son equivalentes.';
+        } else {
+            el.textContent = 'DDPM anade ruido en cada paso reverse (trayectoria zigzagueante). DDIM es determinista (trayectoria suave). Ambos convergen a muestras de alta calidad.';
+        }
+    }
+
+    function stopAnimation() {
+        if (animId) {
+            cancelAnimationFrame(animId);
+            animId = null;
+        }
+        animating = false;
+    }
+
+    function startSingleAnimation() {
+        stopAnimation();
+        isMultiMode = false;
+
+        const steps = getDDIMSteps();
+        const eta = getEta();
+
+        // Random starting point from isotropic Gaussian (prior at t=T)
+        const startX = randn() * 2;
+        const startY = randn() * 2;
+
+        ddpmTrajs = [generateDDPMTrajectory(startX, startY)];
+        ddimTrajs = [generateDDIMTrajectory(startX, startY, steps, eta)];
+
+        maxFrames = Math.max(ddpmTrajs[0].length, ddimTrajs[0].length);
+        animFrame = 1;
+        animating = true;
+
+        updateStats();
+        updateInsight();
+        animate();
+    }
+
+    function startMultiAnimation() {
+        stopAnimation();
+        isMultiMode = true;
+
+        const steps = getDDIMSteps();
+        const eta = getEta();
+        const N = 10;
+
+        ddpmTrajs = [];
+        ddimTrajs = [];
+
+        for (let i = 0; i < N; i++) {
+            const startX = randn() * 2;
+            const startY = randn() * 2;
+            ddpmTrajs.push(generateDDPMTrajectory(startX, startY));
+            ddimTrajs.push(generateDDIMTrajectory(startX, startY, steps, eta));
+        }
+
+        // For multi mode, show full trajectories after animation
+        maxFrames = T_TOTAL + 1;
+        animFrame = 1;
+        animating = true;
+
+        updateStats();
+        updateInsight();
+        animateMulti();
+    }
+
+    function animate() {
+        if (!animating) return;
+
+        const speed = getSpeed();
+
+        // Compute frame counts for each canvas
+        const ddpmFrame = Math.min(animFrame, ddpmTrajs[0].length);
+        const ddimFrame = Math.min(animFrame, ddimTrajs[0].length);
+
+        renderCanvas('canvasDDPM', ddpmTrajs, ddpmFrame, false, 'rgb(255, 123, 84)');
+        renderCanvas('canvasDDIM', ddimTrajs, ddimFrame, false, 'rgb(84, 198, 255)');
+
+        // Update step info
+        const ddpmT = (ddpmFrame < ddpmTrajs[0].length) ? ddpmTrajs[0][ddpmFrame - 1].t : 0;
+        const ddimT = (ddimFrame < ddimTrajs[0].length) ? ddimTrajs[0][ddimFrame - 1].t : 0;
+        document.getElementById('stepInfo').innerHTML =
+            `DDPM: paso <span class="step-number">${ddpmTrajs[0].length - ddpmFrame}/${ddpmTrajs[0].length - 1}</span>` +
+            ` &nbsp;|&nbsp; ` +
+            `DDIM: paso <span class="step-number">${ddimTrajs[0].length - ddimFrame}/${ddimTrajs[0].length - 1}</span>`;
+
+        if (ddpmFrame >= ddpmTrajs[0].length && ddimFrame >= ddimTrajs[0].length) {
+            animating = false;
+            document.getElementById('stepInfo').innerHTML =
+                `Completado. DDPM: <span class="step-number">${ddpmTrajs[0].length - 1}</span> pasos` +
+                ` &nbsp;|&nbsp; ` +
+                `DDIM: <span class="step-number">${ddimTrajs[0].length - 1}</span> pasos`;
+            return;
+        }
+
+        animFrame += speed;
+        animId = requestAnimationFrame(animate);
+    }
+
+    function animateMulti() {
+        if (!animating) return;
+
+        const speed = getSpeed();
+
+        // We progressively reveal trajectories
+        // For multi mode, compute truncated trajectories up to animFrame
+        const ddpmPartial = ddpmTrajs.map(traj => traj.slice(0, Math.min(animFrame, traj.length)));
+        const ddimPartial = ddimTrajs.map(traj => traj.slice(0, Math.min(animFrame, traj.length)));
+
+        renderCanvas('canvasDDPM', ddpmPartial, animFrame, true, 'rgb(255, 123, 84)');
+        renderCanvas('canvasDDIM', ddimPartial, animFrame, true, 'rgb(84, 198, 255)');
+
+        document.getElementById('stepInfo').innerHTML =
+            `Animando <span class="step-number">10</span> trayectorias...`;
+
+        const allDone = ddpmTrajs.every(t => animFrame >= t.length) &&
+                        ddimTrajs.every(t => animFrame >= t.length);
+
+        if (allDone) {
+            animating = false;
+            // Render full
+            renderCanvas('canvasDDPM', ddpmTrajs, 99999, true, 'rgb(255, 123, 84)');
+            renderCanvas('canvasDDIM', ddimTrajs, 99999, true, 'rgb(84, 198, 255)');
+            document.getElementById('stepInfo').innerHTML =
+                `<span class="step-number">10</span> trayectorias completadas`;
+            return;
+        }
+
+        animFrame += speed;
+        animId = requestAnimationFrame(animateMulti);
+    }
+
+    function renderStatic() {
+        // Draw empty canvases with just contours
+        renderCanvas('canvasDDPM', [], 0, false, 'rgb(255, 123, 84)');
+        renderCanvas('canvasDDIM', [], 0, false, 'rgb(84, 198, 255)');
+    }
+
+    // =====================================================================
+    // Event listeners
+    // =====================================================================
+
+    document.getElementById('btnGenerar').addEventListener('click', startSingleAnimation);
+    document.getElementById('btn10').addEventListener('click', startMultiAnimation);
+
+    document.getElementById('sliderSpeed').addEventListener('input', function() {
+        document.getElementById('valSpeed').textContent = this.value;
+    });
+
+    document.getElementById('sliderSteps').addEventListener('input', function() {
+        const steps = STEP_OPTIONS[parseInt(this.value)];
+        document.getElementById('valSteps').textContent = steps;
+        updateStats();
+        updateInsight();
+    });
+
+    document.getElementById('sliderEta').addEventListener('input', function() {
+        document.getElementById('valEta').textContent = parseFloat(this.value).toFixed(2);
+        updateStats();
+        updateInsight();
+    });
+
+    // =====================================================================
+    // Init
+    // =====================================================================
+
+    window.addEventListener('load', function() {
+        updateStats();
+        updateInsight();
+        renderStatic();
+    });
+
+    window.addEventListener('resize', function() {
+        contourCache = null; // invalidate
+        if (!animating) {
+            if (isMultiMode && ddpmTrajs.length > 0) {
+                renderCanvas('canvasDDPM', ddpmTrajs, 99999, true, 'rgb(255, 123, 84)');
+                renderCanvas('canvasDDIM', ddimTrajs, 99999, true, 'rgb(84, 198, 255)');
+            } else if (ddpmTrajs.length > 0) {
+                renderCanvas('canvasDDPM', ddpmTrajs, ddpmTrajs[0].length, false, 'rgb(255, 123, 84)');
+                renderCanvas('canvasDDIM', ddimTrajs, ddimTrajs[0].length, false, 'rgb(84, 198, 255)');
+            } else {
+                renderStatic();
+            }
+        }
+    });
+
+    </script>
+</body>
+</html>

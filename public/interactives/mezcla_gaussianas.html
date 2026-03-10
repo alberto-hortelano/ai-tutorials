@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mezcla de Gaussianas</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific styles not covered by theme.css */
+        .graphs {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .graph-container {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 15px;
+        }
+        canvas {
+            height: 200px;
+        }
+        h2 {
+            color: #aaa;
+            font-size: 1.1em;
+            margin-top: 30px;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        .control-group {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 0;
+        }
+        .legend-item {
+            font-size: 0.9em;
+        }
+        .legend-color {
+            width: 30px;
+        }
+        .formula {
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mezcla de Gaussianas</h1>
+
+    <div class="formula">
+        p(x) = w<sub>1</sub> · N(x | μ<sub>1</sub>, σ<sub>1</sub>²) + w<sub>2</sub> · N(x | μ<sub>2</sub>, σ<sub>2</sub>²)
+    </div>
+
+    <div class="graphs">
+        <div class="graph-container">
+            <h2>Gaussiana 1 (azul)</h2>
+            <canvas id="graph1"></canvas>
+        </div>
+
+        <div class="graph-container">
+            <h2>Gaussiana 2 (verde)</h2>
+            <canvas id="graph2"></canvas>
+        </div>
+
+        <div class="graph-container">
+            <h2>Mezcla de ambas (rojo)</h2>
+            <canvas id="graphMix"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(100, 150, 255, 0.5)"></div>
+                    <span>Gaussiana 1 (×w₁)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(100, 255, 150, 0.5)"></div>
+                    <span>Gaussiana 2 (×w₂)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e94560"></div>
+                    <span>Mezcla</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <div class="control">
+                <label>μ₁ (media gaussiana 1): <span class="value" id="mu1-val">0</span></label>
+                <input type="range" id="mu1" min="-5" max="5" step="0.1" value="0">
+            </div>
+            <div class="control">
+                <label>σ₁ (desviación estándar 1): <span class="value" id="sigma1-val">1</span></label>
+                <input type="range" id="sigma1" min="0.3" max="3" step="0.1" value="1">
+            </div>
+            <div class="control">
+                <label>μ₂ (media gaussiana 2): <span class="value" id="mu2-val">4</span></label>
+                <input type="range" id="mu2" min="-5" max="8" step="0.1" value="4">
+            </div>
+            <div class="control">
+                <label>σ₂ (desviación estándar 2): <span class="value" id="sigma2-val">1</span></label>
+                <input type="range" id="sigma2" min="0.3" max="3" step="0.1" value="1">
+            </div>
+            <div class="control">
+                <label>w₁ (peso gaussiana 1): <span class="value" id="w1-val">0.5</span></label>
+                <input type="range" id="w1" min="0" max="1" step="0.05" value="0.5">
+            </div>
+            <div class="control">
+                <label>w₂ (peso gaussiana 2): <span class="value" id="w2-val">0.5</span></label>
+                <input type="range" id="w2" min="0" max="1" step="0.05" value="0.5" disabled>
+            </div>
+        </div>
+    </div>
+
+    <div class="insight" id="insight-box" style="background: rgba(233,69,96,0.1); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 15px 20px; font-size: 0.9em; line-height: 1.6; margin-top: 20px;">
+        Ajusta los parametros para explorar.
+    </div>
+
+    <script type="module">
+        import { gaussian } from './shared/math.js';
+        import { setupCanvas } from './shared/canvas.js';
+
+        // Parámetros
+        let params = {
+            mu1: 0, sigma1: 1,
+            mu2: 4, sigma2: 1,
+            w1: 0.5
+        };
+
+        // Dibujar una gráfica
+        function drawGraph(canvasId, drawFunc) {
+            const canvas = document.getElementById(canvasId);
+            const { ctx, w: width, h: height } = setupCanvas(canvas);
+
+            // Limpiar
+            ctx.fillStyle = '#16213e';
+            ctx.fillRect(0, 0, width, height);
+
+            // Rango dinámico basado en parámetros
+            const maxSigma = Math.max(params.sigma1, params.sigma2);
+            const xMin = Math.min(params.mu1, params.mu2) - 4 * maxSigma;
+            const xMax = Math.max(params.mu1, params.mu2) + 4 * maxSigma;
+            const yMax = 0.5;
+
+            // Ejes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // Eje X
+            const yAxis = height - 30;
+            ctx.moveTo(40, yAxis);
+            ctx.lineTo(width - 20, yAxis);
+            // Eje Y
+            ctx.moveTo(40, 10);
+            ctx.lineTo(40, yAxis);
+            ctx.stroke();
+
+            // Marcas en X (adaptadas al rango)
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            const tickStep = Math.max(1, Math.round((xMax - xMin) / 8));
+            const tickStart = Math.ceil(xMin / tickStep) * tickStep;
+            for (let x = tickStart; x <= xMax; x += tickStep) {
+                const px = 40 + (x - xMin) / (xMax - xMin) * (width - 60);
+                ctx.fillText(x.toString(), px, yAxis + 15);
+                ctx.beginPath();
+                ctx.moveTo(px, yAxis);
+                ctx.lineTo(px, yAxis + 4);
+                ctx.stroke();
+            }
+
+            // Función de transformación
+            const toPixelX = (x) => 40 + (x - xMin) / (xMax - xMin) * (width - 60);
+            const toPixelY = (y) => yAxis - (y / yMax) * (yAxis - 20);
+
+            // Dibujar la función
+            drawFunc(ctx, toPixelX, toPixelY, xMin, xMax);
+        }
+
+        // Dibujar Gaussiana 1
+        function drawGaussian1(ctx, toX, toY, xMin, xMax) {
+            ctx.strokeStyle = '#6496ff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            for (let x = xMin; x <= xMax; x += 0.05) {
+                const y = gaussian(x, params.mu1, params.sigma1);
+                const px = toX(x), py = toY(y);
+                if (x === xMin) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // Dibujar Gaussiana 2
+        function drawGaussian2(ctx, toX, toY, xMin, xMax) {
+            ctx.strokeStyle = '#64ff96';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            for (let x = xMin; x <= xMax; x += 0.05) {
+                const y = gaussian(x, params.mu2, params.sigma2);
+                const px = toX(x), py = toY(y);
+                if (x === xMin) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // Dibujar mezcla
+        function drawMixture(ctx, toX, toY, xMin, xMax) {
+            const w2 = 1 - params.w1;
+
+            // Dibujar componentes atenuadas primero (área rellena)
+            // Gaussiana 1 ponderada
+            ctx.fillStyle = 'rgba(100, 150, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(toX(xMin), toY(0));
+            for (let x = xMin; x <= xMax; x += 0.05) {
+                const y = params.w1 * gaussian(x, params.mu1, params.sigma1);
+                ctx.lineTo(toX(x), toY(y));
+            }
+            ctx.lineTo(toX(xMax), toY(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // Gaussiana 2 ponderada
+            ctx.fillStyle = 'rgba(100, 255, 150, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(toX(xMin), toY(0));
+            for (let x = xMin; x <= xMax; x += 0.05) {
+                const y = w2 * gaussian(x, params.mu2, params.sigma2);
+                ctx.lineTo(toX(x), toY(y));
+            }
+            ctx.lineTo(toX(xMax), toY(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // Mezcla (línea sólida)
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            for (let x = xMin; x <= xMax; x += 0.05) {
+                const y1 = gaussian(x, params.mu1, params.sigma1);
+                const y2 = gaussian(x, params.mu2, params.sigma2);
+                const y = params.w1 * y1 + w2 * y2;
+                const px = toX(x), py = toY(y);
+                if (x === xMin) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // Insight box dinámico
+        function updateInsight() {
+            const box = document.getElementById('insight-box');
+            const sep = Math.abs(params.mu2 - params.mu1);
+            const avgSigma = (params.sigma1 + params.sigma2) / 2;
+            const ratio = sep / avgSigma;
+
+            if (ratio < 1.5) {
+                box.innerHTML = 'Con esta separacion (<strong>' + sep.toFixed(1) + '</strong>) y sigmas (<strong>' + avgSigma.toFixed(1) + '</strong>), la mezcla es esencialmente <strong>unimodal</strong>: los dos componentes se fusionan en un solo pico. Una sola Gaussiana podria aproximarla bien.';
+            } else if (ratio < 3) {
+                box.innerHTML = 'La mezcla muestra un <strong>hombro</strong> o <strong>bimodalidad incipiente</strong>. La separacion relativa (' + ratio.toFixed(1) + 'x sigma) no es suficiente para crear dos picos claramente separados. En un GMVAE (PS2), esto corresponderia a clusters parcialmente solapados.';
+            } else {
+                box.innerHTML = 'Con separacion ' + sep.toFixed(1) + ' y sigmas ~' + avgSigma.toFixed(1) + ', la mezcla es claramente <strong>bimodal</strong>. Cada componente forma un pico distinto. Esta es la estructura multimodal que una sola Gaussiana <strong>no puede representar</strong> — de ahi la necesidad de mezclas como prior en el GMVAE.';
+            }
+
+            if (Math.abs(params.w1 - 0.5) > 0.3) {
+                box.innerHTML += ' <strong>Nota:</strong> con pesos muy desiguales (w₁=' + params.w1.toFixed(2) + '), un componente domina — el otro contribuye como una cola asimetrica.';
+            }
+        }
+
+        // Actualizar todas las gráficas
+        function updateAll() {
+            drawGraph('graph1', drawGaussian1);
+            drawGraph('graph2', drawGaussian2);
+            drawGraph('graphMix', drawMixture);
+            updateInsight();
+        }
+
+        // Configurar controles
+        function setupControls() {
+            const controls = ['mu1', 'sigma1', 'mu2', 'sigma2', 'w1'];
+
+            controls.forEach(id => {
+                const input = document.getElementById(id);
+                const valSpan = document.getElementById(id + '-val');
+
+                input.addEventListener('input', () => {
+                    const val = parseFloat(input.value);
+                    params[id] = val;
+                    valSpan.textContent = val.toFixed(id.startsWith('w') ? 2 : 1);
+
+                    // Actualizar w2 automáticamente
+                    if (id === 'w1') {
+                        document.getElementById('w2').value = 1 - val;
+                        document.getElementById('w2-val').textContent = (1 - val).toFixed(2);
+                    }
+
+                    updateAll();
+                });
+            });
+        }
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            setupControls();
+            updateAll();
+        });
+
+        window.addEventListener('resize', updateAll);
+    </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+{
+  "interactives": [
+    {
+      "id": "cambio_variables",
+      "title": "Cambio de Variables",
+      "file": "cambio_variables.html",
+      "topic": "PS3",
+      "exercise": "ex1",
+      "tags": ["flow", "change-of-variables", "jacobian"]
+    },
+    {
+      "id": "campo_score",
+      "title": "Campo de Score",
+      "file": "campo_score.html",
+      "topic": "PS4",
+      "exercise": "ex1",
+      "tags": ["score", "gradient", "density"]
+    },
+    {
+      "id": "composicion_flujos",
+      "title": "Composicion de Flujos",
+      "file": "composicion_flujos.html",
+      "topic": "PS3",
+      "exercise": "ex1",
+      "tags": ["flow", "composition", "invertible"]
+    },
+    {
+      "id": "conditional_gan",
+      "title": "Conditional GAN con Projection Discriminator",
+      "file": "conditional_gan.html",
+      "topic": "PS3",
+      "exercise": "ex4",
+      "tags": ["gan", "conditional", "projection-discriminator", "one-hot"]
+    },
+    {
+      "id": "ddpm_vs_ddim",
+      "title": "DDPM vs DDIM",
+      "file": "ddpm_vs_ddim.html",
+      "topic": "PS4",
+      "exercise": "ex4",
+      "tags": ["diffusion", "ddpm", "ddim", "sampling"]
+    },
+    {
+      "id": "discriminador_optimo",
+      "title": "Discriminador Optimo D* y Logits h*",
+      "file": "discriminador_optimo.html",
+      "topic": "PS3",
+      "exercise": "ex3",
+      "tags": ["gan", "discriminator", "logits", "divergence"]
+    },
+    {
+      "id": "elbo_interactivo",
+      "title": "ELBO Interactivo",
+      "file": "elbo_interactivo.html",
+      "topic": "PS2",
+      "exercise": "ex1",
+      "tags": ["vae", "elbo", "kl", "reconstruction"]
+    },
+    {
+      "id": "forward_vs_reverse",
+      "title": "Forward vs Reverse KL",
+      "file": "forward_vs_reverse.html",
+      "topic": "PS1",
+      "exercise": "ex1",
+      "tags": ["kl", "divergence", "forward", "reverse"]
+    },
+    {
+      "id": "gan_juego_minimax",
+      "title": "GAN: Juego Minimax",
+      "file": "gan_juego_minimax.html",
+      "topic": "PS3",
+      "exercise": "ex2",
+      "tags": ["gan", "minimax", "generator", "discriminator", "training"]
+    },
+    {
+      "id": "gaussiana_conjunta_3d",
+      "title": "Gaussiana Conjunta 3D",
+      "file": "gaussiana_conjunta_3d.html",
+      "topic": "general",
+      "tags": ["gaussian", "3d", "joint", "multivariate"]
+    },
+    {
+      "id": "gaussiana_multivariante",
+      "title": "Gaussiana Multivariante",
+      "file": "gaussiana_multivariante.html",
+      "topic": "general",
+      "tags": ["gaussian", "multivariate", "covariance"]
+    },
+    {
+      "id": "mezcla_gaussianas",
+      "title": "Mezcla de Gaussianas",
+      "file": "mezcla_gaussianas.html",
+      "topic": "PS2",
+      "exercise": "ex2",
+      "tags": ["gmm", "mixture", "gaussian", "latent"]
+    },
+    {
+      "id": "proceso_difusion",
+      "title": "Proceso de Difusion",
+      "file": "proceso_difusion.html",
+      "topic": "PS4",
+      "exercise": "ex3",
+      "tags": ["diffusion", "forward", "noise", "schedule"]
+    },
+    {
+      "id": "reparametrizacion",
+      "title": "Truco de Reparametrizacion",
+      "file": "reparametrizacion.html",
+      "topic": "PS2",
+      "exercise": "ex1",
+      "tags": ["vae", "reparameterization", "gradient"]
+    },
+    {
+      "id": "ssvae_semi_supervisado",
+      "title": "Semi-Supervised VAE",
+      "file": "ssvae_semi_supervisado.html",
+      "topic": "PS2",
+      "exercise": "ex4",
+      "tags": ["vae", "semi-supervised", "classification"]
+    },
+    {
+      "id": "tensores_tutorial",
+      "title": "Tutorial de Tensores",
+      "file": "tensores_tutorial.html",
+      "topic": "general",
+      "tags": ["pytorch", "tensors", "tutorial"]
+    },
+    {
+      "id": "wasserstein_vs_kl",
+      "title": "Wasserstein vs KL vs JSD",
+      "file": "wasserstein_vs_kl.html",
+      "topic": "PS3",
+      "exercise": "ex5",
+      "tags": ["wasserstein", "kl", "jsd", "divergence", "wgan"]
+    },
+    {
+      "id": "modelo_autoregresivo",
+      "title": "Factorizacion Autoregresiva",
+      "file": "modelo_autoregresivo.html",
+      "topic": "PS1",
+      "exercise": "ex4",
+      "tags": ["autoregressive", "chain-rule", "sampling", "conditional"]
+    },
+    {
+      "id": "iwae_muestras",
+      "title": "IWAE: Multiples Muestras Mejoran el ELBO",
+      "file": "iwae_muestras.html",
+      "topic": "PS2",
+      "exercise": "ex3",
+      "tags": ["iwae", "importance-weighting", "elbo", "vae"]
+    },
+    {
+      "id": "langevin_dynamics",
+      "title": "Langevin Dynamics",
+      "file": "langevin_dynamics.html",
+      "topic": "PS4",
+      "exercise": "ex1",
+      "tags": ["ebm", "langevin", "score", "sampling", "mcmc"]
+    }
+  ]
+}

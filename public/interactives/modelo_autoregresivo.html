@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo Autoregresivo — Visualización</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .main-content { max-width: 900px; margin: 0 auto; }
+  h1 { text-align: center; font-size: 1.5rem; margin-bottom: 6px; color: #f8fafc; }
+  .subtitle {
+    text-align: center; color: #94a3b8; font-size: 0.92rem;
+    margin-bottom: 16px; font-family: 'Courier New', monospace;
+  }
+  .instructions {
+    text-align: center; background: #1e293b; border: 1px solid #334155;
+    border-radius: 10px; padding: 10px 18px; margin: 0 auto 16px;
+    max-width: 700px; font-size: 0.9rem; color: #cbd5e1; line-height: 1.5;
+  }
+
+  /* Controls inline */
+  .controls {
+    display: flex; justify-content: center; align-items: center;
+    gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .btn {
+    padding: 7px 16px; border: none; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer;
+    transition: all 0.15s; background: #818cf8; color: #0f172a;
+  }
+  .btn:hover { background: #a5b4fc; }
+  .btn:active { transform: scale(0.97); }
+  .btn-green { background: #34d399; }
+  .btn-green:hover { background: #6ee7b7; }
+  .btn-outline {
+    background: transparent; border: 2px solid #334155; color: #94a3b8;
+  }
+  .btn-outline:hover { border-color: #818cf8; color: #818cf8; background: transparent; }
+  .btn-outline.active { border-color: #818cf8; color: #818cf8; }
+  select {
+    background: #1e293b; color: #e2e8f0; border: 2px solid #334155;
+    border-radius: 8px; padding: 7px 12px; font-size: 0.85rem;
+    font-family: inherit; cursor: pointer;
+  }
+  select:focus { outline: none; border-color: #818cf8; }
+
+  /* Main layout: heatmap with side bars */
+  .viz-grid {
+    display: grid;
+    grid-template-columns: 1fr 140px;
+    grid-template-rows: auto auto;
+    gap: 12px;
+    max-width: 700px;
+    margin: 0 auto 16px;
+  }
+  .heatmap-panel {
+    background: #1e293b; border-radius: 16px; padding: 14px;
+    border: 2px solid #334155; grid-row: 1 / 3;
+  }
+  .heatmap-panel canvas { width: 100%; height: 340px; border-radius: 8px; background: #0f172a; display: block; }
+  .side-panel {
+    background: #1e293b; border-radius: 16px; padding: 12px;
+    border: 2px solid #334155;
+  }
+  .side-panel canvas { width: 100%; height: 150px; border-radius: 8px; background: #0f172a; display: block; }
+  .panel-title {
+    font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;
+    color: #818cf8; text-align: center;
+  }
+
+  /* Step indicator */
+  .step-indicator {
+    display: flex; justify-content: center; gap: 8px; margin-bottom: 16px;
+  }
+  .step {
+    padding: 6px 14px; border-radius: 8px; font-size: 0.82rem;
+    background: #1e293b; border: 2px solid #334155; color: #64748b;
+    font-family: 'Courier New', monospace; transition: all 0.2s;
+  }
+  .step.active { border-color: #818cf8; color: #818cf8; background: rgba(129,140,248,0.1); }
+  .step.done { border-color: #34d399; color: #34d399; background: rgba(52,211,153,0.1); }
+  .step-arrow { color: #475569; font-size: 1.1rem; display: flex; align-items: center; }
+
+  /* Samples counter */
+  .samples-counter {
+    text-align: center; font-size: 0.82rem; color: #64748b; margin-bottom: 12px;
+  }
+  .samples-counter strong { color: #c4b5fd; }
+
+  .insight {
+    max-width: 700px; margin: 0 auto; background: #1e293b;
+    border-radius: 16px; padding: 18px; border: 2px solid #334155;
+  }
+  .insight h3 { font-size: 0.95rem; color: #34d399; margin-bottom: 8px; }
+  .insight p { font-size: 0.88rem; color: #94a3b8; line-height: 1.55; margin-bottom: 6px; }
+  .insight p:last-child { margin-bottom: 0; }
+  .insight code { font-family: 'Courier New', monospace; color: #c4b5fd; font-size: 0.85rem; }
+
+  @media (max-width: 600px) {
+    .viz-grid { grid-template-columns: 1fr; }
+    .heatmap-panel { grid-row: auto; }
+    .controls { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="main-content">
+
+  <h1>Factorización Autoregresiva</h1>
+  <p class="subtitle">p(x₁, x₂) = p(x₁) · p(x₂ | x₁)  vs  p(x₂) · p(x₁ | x₂)</p>
+
+  <div class="instructions">
+    Elige una distribución, cambia el orden de factorización, y pulsa <strong>Muestrear</strong> para ver el muestreo secuencial paso a paso. Las muestras se acumulan sobre el heatmap.
+  </div>
+
+  <div class="controls">
+    <select id="sel-dist">
+      <option value="0">Independiente</option>
+      <option value="1" selected>Correlacionada</option>
+      <option value="2">Multimodal</option>
+    </select>
+    <button class="btn-outline active" id="btn-order1">x₁ → x₂</button>
+    <button class="btn-outline" id="btn-order2">x₂ → x₁</button>
+    <button class="btn btn-green" id="btn-sample">Muestrear ▶</button>
+    <button class="btn-outline" id="btn-clear">Limpiar muestras</button>
+  </div>
+
+  <div class="step-indicator" id="step-indicator">
+    <div class="step" id="step1">1. Muestrear x₁ ~ p(x₁)</div>
+    <div class="step-arrow">→</div>
+    <div class="step" id="step2">2. Muestrear x₂ ~ p(x₂|x₁)</div>
+  </div>
+
+  <div class="samples-counter">Muestras: <strong id="sample-count">0</strong></div>
+
+  <div class="viz-grid">
+    <div class="heatmap-panel">
+      <div class="panel-title">Distribución conjunta p(x₁, x₂)</div>
+      <canvas id="canvas-joint" height="340"></canvas>
+    </div>
+    <div class="side-panel">
+      <div class="panel-title" id="marginal-title">Marginal p(x₁)</div>
+      <canvas id="canvas-marginal" height="150"></canvas>
+    </div>
+    <div class="side-panel">
+      <div class="panel-title" id="cond-title">Condicional p(x₂|x₁=?)</div>
+      <canvas id="canvas-cond" height="150"></canvas>
+    </div>
+  </div>
+
+  <div class="insight">
+    <h3>Modelos autoregresivos y la regla de la cadena</h3>
+    <p>
+      La regla de la cadena de probabilidad garantiza que <strong>cualquier</strong> distribución conjunta
+      se puede escribir como producto de condicionales: <code>p(x₁,...,xₙ) = ∏ p(xᵢ | x₁,...,xᵢ₋₁)</code>.
+      Un modelo autoregresivo parametriza estas condicionales con redes neuronales (NADE, PixelRNN, etc.).
+    </p>
+    <p>
+      El <strong>orden de las variables</strong> importa: aunque la conjunta es la misma,
+      las condicionales cambian. Observa cómo <code>p(x₂|x₁)</code> y <code>p(x₁|x₂)</code>
+      tienen formas muy distintas para distribuciones correlacionadas.
+    </p>
+    <p>
+      El muestreo es <strong>secuencial</strong>: primero x₁, luego x₂ condicionado a x₁.
+      Esto da verosimilitud exacta pero hace que el sampling sea lento (O(n) para n variables).
+    </p>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════
+const N = 5; // grid size: x1, x2 ∈ {0,...,4}
+const S = {
+  distIdx: 1,    // 0=independent, 1=correlated, 2=multimodal
+  order: 0,      // 0 = x1→x2, 1 = x2→x1
+  samples: [],   // [{x1, x2}]
+  step: 0,       // 0=idle, 1=sampled first var, 2=done
+  sampledFirst: -1,
+  highlightRow: -1,
+};
+
+// ═══════════════════════════════════════════════
+// Distributions (5x5 joint tables, row=x2, col=x1)
+// ═══════════════════════════════════════════════
+function makeJoint(distIdx) {
+  const joint = Array.from({length: N}, () => new Float64Array(N));
+  if (distIdx === 0) {
+    // Independent: p(x1)*p(x2), both peaked at center
+    const m1 = [0.05, 0.2, 0.5, 0.2, 0.05];
+    const m2 = [0.1, 0.25, 0.3, 0.25, 0.1];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) joint[j][i] = m1[i] * m2[j];
+  } else if (distIdx === 1) {
+    // Correlated: high along diagonal
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const d = Math.abs(i - j);
+      joint[j][i] = Math.exp(-d * d / 0.8);
+    }
+  } else {
+    // Multimodal: two clusters at (1,1) and (3,3)
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const d1 = (i-1)**2 + (j-1)**2;
+      const d2 = (i-3)**2 + (j-3)**2;
+      joint[j][i] = Math.exp(-d1/0.7) + Math.exp(-d2/0.7);
+    }
+  }
+  // Normalize
+  let sum = 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) sum += joint[j][i];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) joint[j][i] /= sum;
+  return joint;
+}
+
+function getMarginal(joint, axis) {
+  // axis=0: marginal over x2 → p(x1), axis=1: marginal over x1 → p(x2)
+  const m = new Float64Array(N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    if (axis === 0) m[i] += joint[j][i]; else m[j] += joint[j][i];
+  }
+  return m;
+}
+
+function getConditional(joint, axis, given) {
+  // axis=0: p(x2|x1=given), axis=1: p(x1|x2=given)
+  const c = new Float64Array(N);
+  let sum = 0;
+  for (let k = 0; k < N; k++) {
+    const v = axis === 0 ? joint[k][given] : joint[given][k];
+    c[k] = v;
+    sum += v;
+  }
+  if (sum > 0) for (let k = 0; k < N; k++) c[k] /= sum;
+  return c;
+}
+
+function sampleDiscrete(probs) {
+  const r = Math.random();
+  let cum = 0;
+  for (let i = 0; i < probs.length; i++) {
+    cum += probs[i];
+    if (r < cum) return i;
+  }
+  return probs.length - 1;
+}
+
+// ═══════════════════════════════════════════════
+// Canvas utils
+// ═══════════════════════════════════════════════
+function setupCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function heatColor(v) {
+  // 0=dark blue, 1=bright yellow
+  const r = Math.floor(Math.min(255, v * 2.5 * 255));
+  const g = Math.floor(Math.min(255, Math.max(0, v - 0.25) * 2 * 200));
+  const b = Math.floor(Math.max(0, (0.6 - v) * 2 * 255));
+  return `rgb(${r},${g},${b})`;
+}
+
+// ═══════════════════════════════════════════════
+// Draw functions
+// ═══════════════════════════════════════════════
+function drawJoint() {
+  const canvas = document.getElementById('canvas-joint');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const joint = makeJoint(S.distIdx);
+  let maxP = 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (joint[j][i] > maxP) maxP = joint[j][i];
+
+  const margin = { left: 40, right: 16, top: 24, bottom: 36 };
+  const pw = (w - margin.left - margin.right) / N;
+  const ph = (h - margin.top - margin.bottom) / N;
+
+  // Axis labels
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  const xLabel = S.order === 0 ? 'x₁' : 'x₂';
+  const yLabel = S.order === 0 ? 'x₂' : 'x₁';
+  ctx.fillText(xLabel, margin.left + (w - margin.left - margin.right) / 2, h - 4);
+  ctx.save();
+  ctx.translate(12, margin.top + (h - margin.top - margin.bottom) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  // Heatmap cells
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const ji = S.order === 0 ? joint[j][i] : joint[i][j];
+      const v = maxP > 0 ? ji / maxP : 0;
+      const x = margin.left + i * pw;
+      const y = margin.top + (N - 1 - j) * ph;
+
+      ctx.fillStyle = heatColor(v);
+      ctx.fillRect(x + 1, y + 1, pw - 2, ph - 2);
+
+      // Probability text
+      if (pw > 40) {
+        ctx.fillStyle = v > 0.5 ? '#0f172a' : '#94a3b8';
+        ctx.font = `${Math.min(11, pw/5)}px "Courier New", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ji.toFixed(3), x + pw / 2, y + ph / 2);
+      }
+    }
+  }
+
+  // Tick labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < N; i++) {
+    ctx.fillText(i, margin.left + i * pw + pw / 2, h - margin.bottom + 6);
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let j = 0; j < N; j++) {
+    ctx.fillText(j, margin.left - 6, margin.top + (N - 1 - j) * ph + ph / 2);
+  }
+
+  // Highlight row/column for current step
+  if (S.step === 1 && S.sampledFirst >= 0) {
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([4, 4]);
+    if (S.order === 0) {
+      // Highlight column x1=sampledFirst
+      const x = margin.left + S.sampledFirst * pw;
+      ctx.strokeRect(x, margin.top, pw, N * ph);
+    } else {
+      // Highlight row x2=sampledFirst
+      const y = margin.top + (N - 1 - S.sampledFirst) * ph;
+      ctx.strokeRect(margin.left, y, N * pw, ph);
+    }
+    ctx.setLineDash([]);
+  }
+
+  // Draw accumulated samples
+  for (const s of S.samples) {
+    const si = S.order === 0 ? s.x1 : s.x2;
+    const sj = S.order === 0 ? s.x2 : s.x1;
+    const x = margin.left + si * pw + pw / 2 + (Math.random() - 0.5) * pw * 0.5;
+    const y = margin.top + (N - 1 - sj) * ph + ph / 2 + (Math.random() - 0.5) * ph * 0.5;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.85)';
+    ctx.fill();
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function drawMarginal() {
+  const canvas = document.getElementById('canvas-marginal');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const joint = makeJoint(S.distIdx);
+  // If order=0, first variable is x1 → marginal p(x1) = sum over x2
+  // If order=1, first variable is x2 → marginal p(x2) = sum over x1
+  const marginal = getMarginal(joint, S.order === 0 ? 0 : 1);
+
+  const margin = { left: 10, right: 10, top: 8, bottom: 20 };
+  const barW = (w - margin.left - margin.right) / N;
+  const maxH = h - margin.top - margin.bottom;
+  const maxVal = Math.max(...marginal);
+
+  for (let i = 0; i < N; i++) {
+    const barH = maxVal > 0 ? (marginal[i] / maxVal) * maxH * 0.85 : 0;
+    const x = margin.left + i * barW;
+    const y = h - margin.bottom - barH;
+
+    const highlight = S.step === 1 && S.sampledFirst === i;
+    ctx.fillStyle = highlight ? '#818cf8' : 'rgba(129, 140, 248, 0.4)';
+    ctx.fillRect(x + 3, y, barW - 6, barH);
+
+    // Value
+    ctx.fillStyle = highlight ? '#f8fafc' : '#64748b';
+    ctx.font = '10px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(marginal[i].toFixed(2), x + barW / 2, y - 4);
+
+    // Label
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(i, x + barW / 2, h - 4);
+  }
+
+  // Update title
+  const varName = S.order === 0 ? 'x₁' : 'x₂';
+  document.getElementById('marginal-title').textContent = `Marginal p(${varName})`;
+}
+
+function drawConditional() {
+  const canvas = document.getElementById('canvas-cond');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const joint = makeJoint(S.distIdx);
+
+  const firstVar = S.order === 0 ? 'x₁' : 'x₂';
+  const secondVar = S.order === 0 ? 'x₂' : 'x₁';
+
+  if (S.step === 0 || S.sampledFirst < 0) {
+    document.getElementById('cond-title').textContent = `Condicional p(${secondVar}|${firstVar}=?)`;
+    ctx.fillStyle = '#475569';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Pulsa "Muestrear" para ver`, w / 2, h / 2);
+    return;
+  }
+
+  const given = S.sampledFirst;
+  document.getElementById('cond-title').textContent = `p(${secondVar}|${firstVar}=${given})`;
+
+  // axis: if order=0, conditional is p(x2|x1=given) → axis=0
+  // if order=1, conditional is p(x1|x2=given) → axis=1
+  const cond = getConditional(joint, S.order === 0 ? 0 : 1, given);
+
+  const margin = { left: 10, right: 10, top: 8, bottom: 20 };
+  const barW = (w - margin.left - margin.right) / N;
+  const maxH = h - margin.top - margin.bottom;
+  const maxVal = Math.max(...cond);
+
+  for (let i = 0; i < N; i++) {
+    const barH = maxVal > 0 ? (cond[i] / maxVal) * maxH * 0.85 : 0;
+    const x = margin.left + i * barW;
+    const y = h - margin.bottom - barH;
+
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.5)';
+    ctx.fillRect(x + 3, y, barW - 6, barH);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(cond[i].toFixed(2), x + barW / 2, y - 4);
+    ctx.fillText(i, x + barW / 2, h - 4);
+  }
+}
+
+function updateStepIndicator() {
+  const s1 = document.getElementById('step1');
+  const s2 = document.getElementById('step2');
+  const firstVar = S.order === 0 ? 'x₁' : 'x₂';
+  const secondVar = S.order === 0 ? 'x₂' : 'x₁';
+
+  s1.textContent = `1. ${firstVar} ~ p(${firstVar})`;
+  s2.textContent = `2. ${secondVar} ~ p(${secondVar}|${firstVar})`;
+
+  s1.className = 'step' + (S.step >= 1 ? ' done' : '');
+  s2.className = 'step' + (S.step >= 2 ? ' done' : S.step === 1 ? ' active' : '');
+}
+
+function drawAll() {
+  drawJoint();
+  drawMarginal();
+  drawConditional();
+  updateStepIndicator();
+  document.getElementById('sample-count').textContent = S.samples.length;
+}
+
+// ═══════════════════════════════════════════════
+// Sampling logic
+// ═══════════════════════════════════════════════
+function doSample() {
+  const joint = makeJoint(S.distIdx);
+
+  if (S.step === 0) {
+    // Step 1: sample first variable
+    const marginal = getMarginal(joint, S.order === 0 ? 0 : 1);
+    S.sampledFirst = sampleDiscrete(marginal);
+    S.step = 1;
+    drawAll();
+    return;
+  }
+
+  if (S.step === 1) {
+    // Step 2: sample second variable conditioned on first
+    const cond = getConditional(joint, S.order === 0 ? 0 : 1, S.sampledFirst);
+    const second = sampleDiscrete(cond);
+    const x1 = S.order === 0 ? S.sampledFirst : second;
+    const x2 = S.order === 0 ? second : S.sampledFirst;
+    S.samples.push({ x1, x2 });
+    S.step = 2;
+    drawAll();
+
+    // Auto-reset after a short delay
+    setTimeout(() => {
+      S.step = 0;
+      S.sampledFirst = -1;
+      drawAll();
+    }, 600);
+    return;
+  }
+
+  // If step=2, reset and start over
+  S.step = 0;
+  S.sampledFirst = -1;
+  doSample();
+}
+
+// ═══════════════════════════════════════════════
+// Wiring
+// ═══════════════════════════════════════════════
+document.getElementById('sel-dist').addEventListener('change', (e) => {
+  S.distIdx = parseInt(e.target.value);
+  S.samples = [];
+  S.step = 0;
+  S.sampledFirst = -1;
+  drawAll();
+});
+
+document.getElementById('btn-order1').addEventListener('click', () => {
+  S.order = 0;
+  S.step = 0;
+  S.sampledFirst = -1;
+  document.getElementById('btn-order1').classList.add('active');
+  document.getElementById('btn-order2').classList.remove('active');
+  drawAll();
+});
+
+document.getElementById('btn-order2').addEventListener('click', () => {
+  S.order = 1;
+  S.step = 0;
+  S.sampledFirst = -1;
+  document.getElementById('btn-order2').classList.add('active');
+  document.getElementById('btn-order1').classList.remove('active');
+  drawAll();
+});
+
+document.getElementById('btn-sample').addEventListener('click', doSample);
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  S.samples = [];
+  S.step = 0;
+  S.sampledFirst = -1;
+  drawAll();
+});
+
+// ═══════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  drawAll();
+  window.addEventListener('resize', drawAll);
+});
+</script>
+</body>
+</html>

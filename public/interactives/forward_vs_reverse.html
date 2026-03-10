@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forward vs Reverse: Altura y Peso</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific overrides */
+        body {
+            max-width: 1000px;
+        }
+        .graphs-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .graph-container.full-width {
+            grid-column: 1 / -1;
+        }
+        canvas {
+            height: 180px;
+        }
+        canvas.tall {
+            height: 220px;
+        }
+        .control-group {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 0.95em;
+        }
+        .formula {
+            padding: 12px 15px;
+            font-size: 0.9em;
+        }
+        .highlight-box {
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+        }
+        .highlight-box h4 {
+            color: #e94560;
+            margin: 0 0 10px 0;
+        }
+        .model-label {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .forward-label {
+            background: rgba(100, 150, 255, 0.3);
+            color: #6496ff;
+        }
+        .reverse-label {
+            background: rgba(100, 255, 150, 0.3);
+            color: #64ff96;
+        }
+    </style>
+</head>
+<body>
+    <h1>Modelo Forward vs Reverse</h1>
+    <p class="subtitle">¿Por qué el orden de factorización importa cuando usamos Gaussianas?</p>
+
+    <!-- Controles -->
+    <div class="controls">
+        <h3>Configuración</h3>
+        <div class="control-group">
+            <div class="control">
+                <label>Tipo de función μ₂(altura):</label>
+                <select id="functionType">
+                    <option value="linear">Lineal: peso = 0.5·altura - 15</option>
+                    <option value="step">Escalón: peso = 60kg (bajo) / 80kg (alto)</option>
+                </select>
+            </div>
+            <div class="control">
+                <label>μ_altura (media altura): <span class="value" id="muAltura-val">170</span> cm</label>
+                <input type="range" id="muAltura" min="150" max="190" step="1" value="170">
+            </div>
+            <div class="control">
+                <label>σ_altura (desv. altura): <span class="value" id="sigmaAltura-val">10</span> cm</label>
+                <input type="range" id="sigmaAltura" min="3" max="20" step="1" value="10">
+            </div>
+            <div class="control">
+                <label>σ_peso (desv. peso condicional): <span class="value" id="sigmaPeso-val">5</span> kg</label>
+                <input type="range" id="sigmaPeso" min="1" max="15" step="0.5" value="5">
+            </div>
+        </div>
+    </div>
+
+    <!-- Modelo Forward -->
+    <div class="section">
+        <h2>Modelo Forward <span class="model-label forward-label">altura → peso</span></h2>
+        <div class="formula">
+            p<sub>f</sub>(altura, peso) = p<sub>f</sub>(altura) · p<sub>f</sub>(peso | altura)
+        </div>
+
+        <div class="graphs-row">
+            <div class="graph-container">
+                <h3>Paso 1: p(altura) — Gaussiana</h3>
+                <canvas id="graphAltura"></canvas>
+            </div>
+            <div class="graph-container">
+                <h3>Paso 2: μ(altura) — Media del peso según altura</h3>
+                <canvas id="graphMuFunction"></canvas>
+            </div>
+        </div>
+
+        <div class="graphs-row" style="margin-top: 15px;">
+            <div class="graph-container full-width">
+                <h3>Resultado: p<sub>f</sub>(peso) — Marginal del peso (calculada por integración)</h3>
+                <canvas id="graphMarginalForward" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6496ff"></div>
+                        <span>Marginal p<sub>f</sub>(peso)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modelo Reverse -->
+    <div class="section">
+        <h2>Modelo Reverse <span class="model-label reverse-label">peso → altura</span></h2>
+        <div class="formula">
+            p<sub>r</sub>(altura, peso) = p<sub>r</sub>(peso) · p<sub>r</sub>(altura | peso)
+        </div>
+
+        <div class="graphs-row">
+            <div class="graph-container full-width">
+                <h3>p<sub>r</sub>(peso) — Siempre es una Gaussiana (definida directamente)</h3>
+                <canvas id="graphMarginalReverse" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #64ff96"></div>
+                        <span>Marginal p<sub>r</sub>(peso) — Mejor aproximación Gaussiana</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparación -->
+    <div class="section">
+        <h2>Comparación de marginales</h2>
+
+        <div class="graphs-row">
+            <div class="graph-container full-width">
+                <h3>p<sub>f</sub>(peso) vs p<sub>r</sub>(peso)</h3>
+                <canvas id="graphComparison" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6496ff"></div>
+                        <span>Forward (puede ser bimodal)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #64ff96"></div>
+                        <span>Reverse (siempre unimodal)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box" id="conclusionBox">
+            <h4>Conclusión</h4>
+            <p id="conclusionText">Con una función lineal, ambas marginales son similares (Gaussianas).</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { gaussian } from './shared/math.js';
+        import { setupCanvas } from './shared/canvas.js';
+
+        // Parámetros
+        let params = {
+            functionType: 'linear',
+            muAltura: 170,
+            sigmaAltura: 10,
+            sigmaPeso: 5
+        };
+
+        // Función μ(altura) -> peso esperado
+        function muPeso(altura) {
+            if (params.functionType === 'linear') {
+                return 0.5 * altura - 15; // peso = 0.5*altura - 15
+            } else {
+                // Función escalón
+                return altura < params.muAltura ? 60 : 80;
+            }
+        }
+
+        // Calcular la marginal del peso numéricamente (integración)
+        function computeForwardMarginal(peso) {
+            // p_f(peso) = ∫ p(altura) · p(peso|altura) d(altura)
+            let sum = 0;
+            const alturaMin = 130, alturaMax = 210;
+            const step = 0.5;
+
+            for (let altura = alturaMin; altura <= alturaMax; altura += step) {
+                const pAltura = gaussian(altura, params.muAltura, params.sigmaAltura);
+                const muPesoGivenAltura = muPeso(altura);
+                const pPesoGivenAltura = gaussian(peso, muPesoGivenAltura, params.sigmaPeso);
+                sum += pAltura * pPesoGivenAltura * step;
+            }
+
+            return sum;
+        }
+
+        // Calcular media y varianza de la marginal forward (para el reverse)
+        function computeForwardMarginalStats() {
+            const pesoMin = 30, pesoMax = 110;
+            const step = 0.5;
+
+            let totalProb = 0;
+            let meanSum = 0;
+            let varSum = 0;
+
+            // Primero calcular la media
+            for (let peso = pesoMin; peso <= pesoMax; peso += step) {
+                const p = computeForwardMarginal(peso);
+                totalProb += p * step;
+                meanSum += peso * p * step;
+            }
+
+            const mean = meanSum / totalProb;
+
+            // Luego calcular la varianza
+            for (let peso = pesoMin; peso <= pesoMax; peso += step) {
+                const p = computeForwardMarginal(peso);
+                varSum += Math.pow(peso - mean, 2) * p * step;
+            }
+
+            const variance = varSum / totalProb;
+
+            return { mean, std: Math.sqrt(variance) };
+        }
+
+        // Dibujar gráfica genérica
+        function drawGraph(canvasId, xMin, xMax, yMax, xLabel, drawFunc) {
+            const canvas = document.getElementById(canvasId);
+            const { ctx, w: width, h: height } = setupCanvas(canvas);
+
+            // Limpiar
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, width, height);
+
+            // Ejes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            const yAxis = height - 30;
+            const xAxisStart = 50;
+
+            ctx.beginPath();
+            ctx.moveTo(xAxisStart, yAxis);
+            ctx.lineTo(width - 20, yAxis);
+            ctx.moveTo(xAxisStart, 10);
+            ctx.lineTo(xAxisStart, yAxis);
+            ctx.stroke();
+
+            // Marcas en X
+            ctx.fillStyle = '#666';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            const xStep = (xMax - xMin) / 5;
+            for (let i = 0; i <= 5; i++) {
+                const x = xMin + i * xStep;
+                const px = xAxisStart + (x - xMin) / (xMax - xMin) * (width - xAxisStart - 20);
+                ctx.fillText(Math.round(x).toString(), px, yAxis + 15);
+            }
+
+            // Etiqueta X
+            ctx.fillStyle = '#888';
+            ctx.fillText(xLabel, width / 2, height - 5);
+
+            // Funciones de transformación
+            const toPixelX = (x) => xAxisStart + (x - xMin) / (xMax - xMin) * (width - xAxisStart - 20);
+            const toPixelY = (y) => yAxis - (y / yMax) * (yAxis - 20);
+
+            drawFunc(ctx, toPixelX, toPixelY, xMin, xMax, yMax);
+        }
+
+        // Dibujar p(altura)
+        function drawAltura() {
+            drawGraph('graphAltura', 130, 210, 0.05, 'altura (cm)', (ctx, toX, toY, xMin, xMax) => {
+                ctx.strokeStyle = '#6496ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                for (let x = xMin; x <= xMax; x += 0.5) {
+                    const y = gaussian(x, params.muAltura, params.sigmaAltura);
+                    const px = toX(x), py = toY(y);
+                    if (x === xMin) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+
+                // Área rellena
+                ctx.fillStyle = 'rgba(100, 150, 255, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(toX(xMin), toY(0));
+                for (let x = xMin; x <= xMax; x += 0.5) {
+                    const y = gaussian(x, params.muAltura, params.sigmaAltura);
+                    ctx.lineTo(toX(x), toY(y));
+                }
+                ctx.lineTo(toX(xMax), toY(0));
+                ctx.closePath();
+                ctx.fill();
+            });
+        }
+
+        // Dibujar función μ(altura)
+        function drawMuFunction() {
+            drawGraph('graphMuFunction', 130, 210, 100, 'altura (cm)', (ctx, toX, toY, xMin, xMax) => {
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                if (params.functionType === 'linear') {
+                    const y1 = muPeso(xMin);
+                    const y2 = muPeso(xMax);
+                    ctx.moveTo(toX(xMin), toY(y1));
+                    ctx.lineTo(toX(xMax), toY(y2));
+                } else {
+                    // Función escalón
+                    const threshold = params.muAltura;
+                    ctx.moveTo(toX(xMin), toY(60));
+                    ctx.lineTo(toX(threshold), toY(60));
+                    ctx.moveTo(toX(threshold), toY(80));
+                    ctx.lineTo(toX(xMax), toY(80));
+
+                    // Línea vertical punteada
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeStyle = '#666';
+                    ctx.moveTo(toX(threshold), toY(60));
+                    ctx.lineTo(toX(threshold), toY(80));
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.strokeStyle = '#e94560';
+                }
+                ctx.stroke();
+
+                // Etiquetas
+                ctx.fillStyle = '#888';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('μ(peso)', 55, 20);
+            });
+        }
+
+        // Dibujar marginal forward
+        function drawMarginalForward() {
+            // Pre-calcular valores para encontrar el máximo
+            const values = [];
+            for (let peso = 30; peso <= 110; peso += 0.5) {
+                values.push({ peso, p: computeForwardMarginal(peso) });
+            }
+            const maxP = Math.max(...values.map(v => v.p)) * 1.1;
+
+            drawGraph('graphMarginalForward', 30, 110, maxP, 'peso (kg)', (ctx, toX, toY, xMin, xMax) => {
+                ctx.strokeStyle = '#6496ff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                values.forEach((v, i) => {
+                    const px = toX(v.peso), py = toY(v.p);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+
+                // Área rellena
+                ctx.fillStyle = 'rgba(100, 150, 255, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(toX(xMin), toY(0));
+                values.forEach(v => ctx.lineTo(toX(v.peso), toY(v.p)));
+                ctx.lineTo(toX(xMax), toY(0));
+                ctx.closePath();
+                ctx.fill();
+            });
+        }
+
+        // Dibujar marginal reverse (mejor Gaussiana)
+        function drawMarginalReverse() {
+            const stats = computeForwardMarginalStats();
+
+            // Pre-calcular valores para encontrar el máximo
+            const values = [];
+            for (let peso = 30; peso <= 110; peso += 0.5) {
+                values.push({ peso, p: gaussian(peso, stats.mean, stats.std) });
+            }
+            const maxP = Math.max(...values.map(v => v.p)) * 1.1;
+
+            drawGraph('graphMarginalReverse', 30, 110, maxP, 'peso (kg)', (ctx, toX, toY, xMin, xMax) => {
+                ctx.strokeStyle = '#64ff96';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                values.forEach((v, i) => {
+                    const px = toX(v.peso), py = toY(v.p);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+
+                // Área rellena
+                ctx.fillStyle = 'rgba(100, 255, 150, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(toX(xMin), toY(0));
+                values.forEach(v => ctx.lineTo(toX(v.peso), toY(v.p)));
+                ctx.lineTo(toX(xMax), toY(0));
+                ctx.closePath();
+                ctx.fill();
+
+                // Mostrar parámetros
+                ctx.fillStyle = '#64ff96';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`μ = ${stats.mean.toFixed(1)} kg`, 60, 25);
+                ctx.fillText(`σ = ${stats.std.toFixed(1)} kg`, 60, 40);
+            });
+        }
+
+        // Dibujar comparación
+        function drawComparison() {
+            const stats = computeForwardMarginalStats();
+
+            // Pre-calcular valores
+            const forwardValues = [];
+            const reverseValues = [];
+            for (let peso = 30; peso <= 110; peso += 0.5) {
+                forwardValues.push({ peso, p: computeForwardMarginal(peso) });
+                reverseValues.push({ peso, p: gaussian(peso, stats.mean, stats.std) });
+            }
+
+            const maxP = Math.max(
+                ...forwardValues.map(v => v.p),
+                ...reverseValues.map(v => v.p)
+            ) * 1.1;
+
+            drawGraph('graphComparison', 30, 110, maxP, 'peso (kg)', (ctx, toX, toY, xMin, xMax) => {
+                // Forward
+                ctx.strokeStyle = '#6496ff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                forwardValues.forEach((v, i) => {
+                    const px = toX(v.peso), py = toY(v.p);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+
+                // Reverse
+                ctx.strokeStyle = '#64ff96';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 4]);
+                ctx.beginPath();
+                reverseValues.forEach((v, i) => {
+                    const px = toX(v.peso), py = toY(v.p);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+                ctx.setLineDash([]);
+            });
+
+            // Actualizar conclusión
+            const conclusionText = document.getElementById('conclusionText');
+            if (params.functionType === 'linear') {
+                conclusionText.innerHTML = 'Con una función <strong>lineal</strong>, ambas marginales son similares (ambas Gaussianas). Los modelos son equivalentes en este caso.';
+            } else {
+                conclusionText.innerHTML = 'Con una función <strong>escalón</strong>, la marginal forward es <strong>bimodal</strong> (dos picos), pero la marginal reverse solo puede ser una Gaussiana con <strong>un pico</strong>. <br><br><strong>¡Los modelos NO son equivalentes!</strong> El modelo reverse no puede representar esta distribución.';
+            }
+        }
+
+        // Actualizar todo
+        function updateAll() {
+            drawAltura();
+            drawMuFunction();
+            drawMarginalForward();
+            drawMarginalReverse();
+            drawComparison();
+        }
+
+        // Configurar controles
+        function setupControls() {
+            document.getElementById('functionType').addEventListener('change', (e) => {
+                params.functionType = e.target.value;
+                updateAll();
+            });
+
+            ['muAltura', 'sigmaAltura', 'sigmaPeso'].forEach(id => {
+                const input = document.getElementById(id);
+                const valSpan = document.getElementById(id + '-val');
+
+                input.addEventListener('input', () => {
+                    const val = parseFloat(input.value);
+                    params[id] = val;
+                    valSpan.textContent = val;
+                    updateAll();
+                });
+            });
+        }
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            setupControls();
+            updateAll();
+        });
+
+        window.addEventListener('resize', updateAll);
+    </script>
+</body>
+</html>

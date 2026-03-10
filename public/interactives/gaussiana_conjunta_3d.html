@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaussiana Conjunta 3D - Visualización</title>
+<link rel="stylesheet" href="./shared/theme.css">
+<style>
+  /* File-specific overrides and additions */
+  body {
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding-right: 240px;
+  }
+  .main-content { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; }
+  .subtitle { font-family: 'Courier New', monospace; }
+  .instructions {
+    text-align: center; background: #1e293b; border: 1px solid #334155;
+    border-radius: 10px; padding: 12px 20px; margin: 0 auto 20px;
+    max-width: 700px; font-size: 0.95rem; color: #cbd5e1; line-height: 1.6;
+  }
+
+  /* 3D canvas wrapper */
+  .canvas3d-wrap {
+    max-width: 800px; margin: 0 auto 20px; background: #1e293b;
+    border-radius: 16px; padding: 16px; border: 2px solid #334155;
+  }
+  .canvas3d-wrap canvas {
+    height: 500px; border-radius: 8px; background: #0f172a; cursor: grab;
+  }
+  .canvas3d-wrap canvas:active { cursor: grabbing; }
+
+  /* Marginal panels */
+  .marginals {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    max-width: 800px; margin: 0 auto 20px;
+  }
+  .panel {
+    background: #1e293b; border-radius: 16px; padding: 16px;
+    border: 2px solid #334155;
+  }
+  .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: #818cf8; }
+  .panel-formula {
+    font-family: 'Courier New', monospace; font-size: 0.82rem; color: #94a3b8;
+    margin-bottom: 10px; padding: 4px 10px; background: #0f172a; border-radius: 6px;
+  }
+  .panel canvas { height: 180px; border-radius: 8px; background: #0f172a; }
+
+  /* Heatmap */
+  .heatmap-wrap {
+    max-width: 500px; margin: 0 auto 20px; background: #1e293b;
+    border-radius: 16px; padding: 16px; border: 2px solid #334155;
+  }
+  .heatmap-title {
+    font-size: 1rem; font-weight: 700; margin-bottom: 10px;
+    color: #818cf8; text-align: center;
+  }
+  .heatmap-wrap canvas { height: 400px; border-radius: 8px; background: #0f172a; }
+
+  /* Fixed sidebar controls */
+  .controls {
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+    width: 220px; background: #1e293b; border: 2px solid #334155;
+    border-right: none; border-radius: 16px 0 0 16px;
+    padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; z-index: 100;
+  }
+  .controls-title {
+    font-size: 0.85rem; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.05em; text-align: center;
+  }
+  .control-col { display: flex; flex-direction: column; gap: 6px; }
+  .control-col-label { font-weight: 700; font-size: 0.82rem; color: #94a3b8; margin-bottom: 2px; }
+  .control-group { display: flex; align-items: center; gap: 6px; }
+  .control-group label {
+    font-size: 0.95rem; font-weight: 600; min-width: 24px;
+    text-align: right; font-family: 'Courier New', monospace;
+  }
+  .control-group input[type="range"] { width: 100px; accent-color: #818cf8; flex: 1; }
+  .control-group .value {
+    font-family: 'Courier New', monospace; background: #0f172a;
+    padding: 2px 6px; border-radius: 4px; min-width: 42px;
+    text-align: center; font-size: 0.85rem; color: #c4b5fd;
+  }
+  .btn {
+    padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; transition: all 0.15s;
+    background: #818cf8; color: #0f172a; width: 100%;
+  }
+  .btn:hover { background: #a5b4fc; }
+  .btn:active { transform: scale(0.97); }
+
+  /* Section divider */
+  .section-divider {
+    border: none; border-top: 1px solid #334155; margin: 40px auto; max-width: 400px;
+  }
+
+  /* K selector buttons */
+  .k-selector { display: flex; gap: 4px; }
+  .k-selector button {
+    flex: 1; padding: 4px 0; border: 1px solid #334155; border-radius: 6px;
+    background: #0f172a; color: #94a3b8; font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; transition: all 0.15s;
+  }
+  .k-selector button.active {
+    background: #818cf8; color: #0f172a; border-color: #818cf8;
+  }
+  .k-selector button:hover:not(.active) { border-color: #818cf8; color: #c4b5fd; }
+
+  /* Controls divider */
+  .controls-divider { height: 1px; background: #334155; margin: 4px 0; }
+
+  /* Insight box */
+  .insight {
+    max-width: 800px; margin: 0 auto; background: #1e293b;
+    border-radius: 16px; padding: 20px; border: 2px solid #334155;
+  }
+  .insight h3 { font-size: 1rem; color: #34d399; margin-bottom: 8px; }
+  .insight p { font-size: 0.9rem; color: #94a3b8; line-height: 1.55; }
+  .insight code { font-family: 'Courier New', monospace; color: #c4b5fd; font-size: 0.88rem; }
+
+  @media (max-width: 900px) {
+    body { padding-right: 24px; }
+    .controls {
+      position: fixed; top: auto; bottom: 0; right: 0; left: 0;
+      width: 100%; transform: none; border-radius: 16px 16px 0 0;
+      border: 2px solid #334155; border-bottom: none;
+      flex-direction: row; flex-wrap: wrap; justify-content: center;
+      padding: 14px 16px; gap: 10px 20px;
+    }
+    .controls-title { display: none; }
+    .main-content { padding-bottom: 140px; }
+    .marginals { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="controls-title">Parámetros</div>
+  <div class="control-col">
+    <div class="control-col-label">Dimensión X</div>
+    <div class="control-group">
+      <label>μ₁</label>
+      <input type="range" id="sl-mu1" min="-3" max="3" step="0.1" value="0.0">
+      <span class="value" id="v-mu1">0.0</span>
+    </div>
+    <div class="control-group">
+      <label>σ₁</label>
+      <input type="range" id="sl-s1" min="0.3" max="2.5" step="0.05" value="1.0">
+      <span class="value" id="v-s1">1.00</span>
+    </div>
+  </div>
+  <div class="control-col">
+    <div class="control-col-label">Dimensión Y</div>
+    <div class="control-group">
+      <label>μ₂</label>
+      <input type="range" id="sl-mu2" min="-3" max="3" step="0.1" value="0.0">
+      <span class="value" id="v-mu2">0.0</span>
+    </div>
+    <div class="control-group">
+      <label>σ₂</label>
+      <input type="range" id="sl-s2" min="0.3" max="2.5" step="0.05" value="1.0">
+      <span class="value" id="v-s2">1.00</span>
+    </div>
+  </div>
+  <button class="btn" id="btn-reset">Reset vista</button>
+  <div class="controls-divider"></div>
+  <div class="controls-title">Mezcla (GMVAE)</div>
+  <div class="control-col">
+    <div class="control-col-label">Componentes K</div>
+    <div class="k-selector" id="k-selector">
+      <button data-k="2">2</button>
+      <button data-k="3" class="active">3</button>
+      <button data-k="4">4</button>
+      <button data-k="5">5</button>
+    </div>
+  </div>
+  <div class="control-group">
+    <label>σ</label>
+    <input type="range" id="sl-mix-sigma" min="0.3" max="1.5" step="0.05" value="0.7">
+    <span class="value" id="v-mix-sigma">0.70</span>
+  </div>
+  <div class="control-group">
+    <label>sep</label>
+    <input type="range" id="sl-mix-sep" min="0.5" max="3.0" step="0.1" value="2.0">
+    <span class="value" id="v-mix-sep">2.0</span>
+  </div>
+</div>
+
+<div class="main-content">
+
+<h1>Gaussiana Conjunta en 3D</h1>
+<p class="subtitle">p(x,y) = N(x | μ₁,σ₁²) · N(y | μ₂,σ₂²)</p>
+
+<div class="instructions">
+  Arrastra sobre la superficie para rotar la vista &nbsp;·&nbsp; Sliders fijos a la derecha para los parámetros
+</div>
+
+<div class="canvas3d-wrap">
+  <canvas id="canvas3d" height="500"></canvas>
+</div>
+
+<div class="marginals">
+  <div class="panel">
+    <div class="panel-title">Marginal p(x)</div>
+    <div class="panel-formula">N(x | μ₁, σ₁²)</div>
+    <canvas id="canvas-mx" height="180"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Marginal p(y)</div>
+    <div class="panel-formula">N(y | μ₂, σ₂²)</div>
+    <canvas id="canvas-my" height="180"></canvas>
+  </div>
+</div>
+
+<div class="heatmap-wrap">
+  <div class="heatmap-title">Vista cenital — Heatmap + Contornos</div>
+  <canvas id="canvas-heatmap" height="400"></canvas>
+</div>
+
+<div class="insight">
+  <h3>Conexión con VAEs</h3>
+  <p>
+    En un VAE, el prior sobre el espacio latente es <code>p(z) = N(0, I)</code>,
+    un producto de Gaussianas independientes — exactamente lo que muestra esta visualización.
+    Cada dimensión latente <code>zᵢ</code> sigue <code>N(0, 1)</code> de forma independiente,
+    y la densidad conjunta es el producto de las marginales.
+    En el GMVAE, el prior se convierte en una mezcla de estas Gaussianas,
+    permitiendo capturar estructura multimodal en el espacio latente.
+  </p>
+</div>
+
+<hr class="section-divider">
+
+<h2 style="text-align:center; font-size:1.4rem; color:#f8fafc; margin-bottom:6px;">Mezcla de Gaussianas — Prior del GMVAE</h2>
+<p class="subtitle">p(z) = (1/K) &Sigma; N(z | &mu;<sub>k</sub>, diag(&sigma;<sub>k</sub>&sup2;))</p>
+
+<div class="canvas3d-wrap">
+  <canvas id="canvas3d-mix" height="500"></canvas>
+</div>
+
+<div class="heatmap-wrap">
+  <div class="heatmap-title">Vista cenital — Mezcla + Centros</div>
+  <canvas id="canvas-heatmap-mix" height="400"></canvas>
+</div>
+
+<div class="insight">
+  <h3>Prior multimodal del GMVAE</h3>
+  <p>
+    En el GMVAE (Ec. 7 de PS2), el prior ya no es una sola Gaussiana sino una mezcla:
+    <code>p(z) = (1/K) &Sigma; N(z | &mu;&#x2096;, diag(&sigma;&#x2096;&sup2;))</code>.
+    Cada componente representa un "cluster" en el espacio latente — por ejemplo, un tipo de d&iacute;gito en MNIST.
+    Los pesos son uniformes <code>(1/K)</code>, y la KL entre el encoder <code>q(z|x)</code>
+    y esta mezcla no tiene forma cerrada, requiriendo estimaci&oacute;n Monte Carlo.
+    Observa c&oacute;mo al reducir &sigma; los picos se separan (clusters bien definidos),
+    y al aumentarla se fusionan (colapsando al caso unimodal).
+  </p>
+</div>
+
+</div><!-- /main-content -->
+
+<script type="module">
+import { setupCanvas } from './shared/canvas.js';
+import { gaussian } from './shared/math.js';
+
+// ═══════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════
+const S = {
+  mu1: 0.0, s1: 1.0,
+  mu2: 0.0, s2: 1.0,
+  // 3D view angles
+  theta: -0.6,   // azimuth
+  phi: 0.7,      // elevation
+  // Cached grid
+  grid: null,
+  gridKey: '',
+  // Mixture
+  K: 3,
+  mixSigma: 0.7,
+  mixSep: 2.0,
+  mixGrid: null,
+  mixGridKey: '',
+};
+
+const GRID_N = 40;
+const RANGE = 4.5;  // x,y in [-RANGE, RANGE]
+
+// ═══════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════
+// Color from density: dark blue → indigo → light violet
+function densityColor(d, maxD, alpha) {
+  const t = Math.min(d / (maxD * 0.95 + 1e-12), 1);
+  const r = Math.round(30 + t * 170);
+  const g = Math.round(20 + t * 100);
+  const b = Math.round(80 + t * 175);
+  return `rgba(${r},${g},${b},${alpha != null ? alpha : 1})`;
+}
+
+// ═══════════════════════════════════════════════
+// Grid computation (cached)
+// ═══════════════════════════════════════════════
+function computeGrid() {
+  const key = `${S.mu1},${S.s1},${S.mu2},${S.s2}`;
+  if (S.gridKey === key && S.grid) return S.grid;
+
+  const pts = [];
+  let maxD = 0;
+  const step = (2 * RANGE) / (GRID_N - 1);
+  for (let i = 0; i < GRID_N; i++) {
+    const row = [];
+    const y = -RANGE + i * step;
+    for (let j = 0; j < GRID_N; j++) {
+      const x = -RANGE + j * step;
+      const d = gaussian(x, S.mu1, S.s1) * gaussian(y, S.mu2, S.s2);
+      if (d > maxD) maxD = d;
+      row.push({ x, y, d });
+    }
+    pts.push(row);
+  }
+  S.grid = { pts, maxD };
+  S.gridKey = key;
+  return S.grid;
+}
+
+// ═══════════════════════════════════════════════
+// 3D projection
+// ═══════════════════════════════════════════════
+function rotatePoint(x, y, z) {
+  const ct = Math.cos(S.theta), st = Math.sin(S.theta);
+  const cp = Math.cos(S.phi), sp = Math.sin(S.phi);
+  // Rotate around Y (azimuth), then X (elevation)
+  const x1 = x * ct + z * st;
+  const z1 = -x * st + z * ct;
+  const y1 = y * cp - z1 * sp;
+  const z2 = y * sp + z1 * cp;
+  return { x: x1, y: y1, z: z2 };
+}
+
+function projectPoint(x, y, z, w, h) {
+  const scale = 55;
+  const focalLen = 6;
+  // Normalize coords: x,y in [-RANGE,RANGE] → [-1,1], z = density scaled
+  const nx = x / RANGE;
+  const ny = y / RANGE;
+  const nz = z * 3.5;  // scale density to visible height
+  const r = rotatePoint(nx, nz, ny);
+  const perspective = focalLen / (focalLen + r.z);
+  return {
+    px: w / 2 + r.x * scale * perspective * (w / 200),
+    py: h / 2 - r.y * scale * perspective * (h / 200),
+    depth: r.z,
+  };
+}
+
+// ═══════════════════════════════════════════════
+// 3D Surface renderer
+// ═══════════════════════════════════════════════
+function draw3D() {
+  const canvas = document.getElementById('canvas3d');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const { pts, maxD } = computeGrid();
+
+  // Build quads
+  const quads = [];
+  for (let i = 0; i < GRID_N - 1; i++) {
+    for (let j = 0; j < GRID_N - 1; j++) {
+      const p00 = pts[i][j], p01 = pts[i][j + 1];
+      const p10 = pts[i + 1][j], p11 = pts[i + 1][j + 1];
+      const avgD = (p00.d + p01.d + p10.d + p11.d) / 4;
+
+      const c00 = projectPoint(p00.x, p00.y, p00.d, w, h);
+      const c01 = projectPoint(p01.x, p01.y, p01.d, w, h);
+      const c10 = projectPoint(p10.x, p10.y, p10.d, w, h);
+      const c11 = projectPoint(p11.x, p11.y, p11.d, w, h);
+
+      const avgDepth = (c00.depth + c01.depth + c10.depth + c11.depth) / 4;
+      quads.push({ corners: [c00, c01, c11, c10], avgD, avgDepth });
+    }
+  }
+
+  // Painter's algorithm: sort back to front
+  quads.sort((a, b) => b.avgDepth - a.avgDepth);
+
+  // Draw filled quads
+  for (const q of quads) {
+    const [a, b, c, d] = q.corners;
+    ctx.beginPath();
+    ctx.moveTo(a.px, a.py);
+    ctx.lineTo(b.px, b.py);
+    ctx.lineTo(c.px, c.py);
+    ctx.lineTo(d.px, d.py);
+    ctx.closePath();
+    ctx.fillStyle = densityColor(q.avgD, maxD, 0.85);
+    ctx.fill();
+    // Wireframe
+    ctx.strokeStyle = 'rgba(129,140,248,0.12)';
+    const dpr = window.devicePixelRatio || 1;
+    ctx.lineWidth = Math.max(0.5 * dpr, 1) / dpr;
+    ctx.stroke();
+  }
+
+  // Draw axes
+  drawAxes3D(ctx, w, h, maxD);
+
+  // Draw marginals on walls
+  drawWallMarginals(ctx, w, h, maxD);
+}
+
+// ═══════════════════════════════════════════════
+// 3D Axes
+// ═══════════════════════════════════════════════
+function drawAxes3D(ctx, w, h, maxD) {
+  const axisLen = RANGE;
+
+  // X axis
+  const xO = projectPoint(0, 0, 0, w, h);
+  const xE = projectPoint(axisLen, 0, 0, w, h);
+  drawArrow(ctx, xO, xE, '#818cf8');
+  ctx.font = '13px Segoe UI, sans-serif';
+  ctx.fillStyle = '#818cf8';
+  ctx.fillText('x', xE.px + 6, xE.py + 4);
+
+  // Y axis (mapped to Z in 3D)
+  const yE = projectPoint(0, 0, axisLen, w, h);
+  drawArrow(ctx, xO, yE, '#34d399');
+  ctx.fillStyle = '#34d399';
+  ctx.fillText('y', yE.px + 6, yE.py + 4);
+
+  // Density axis (up)
+  const maxH = maxD * 3.5;
+  const dE = projectPoint(0, 0, 0, w, h);
+  const dT = projectPoint(0, maxD * 1.1, 0, w, h);
+  drawArrow(ctx, dE, dT, '#f8fafc');
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText('p(x,y)', dT.px + 6, dT.py - 4);
+}
+
+function drawArrow(ctx, from, to, color) {
+  ctx.beginPath();
+  ctx.moveTo(from.px, from.py);
+  ctx.lineTo(to.px, to.py);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════
+// Marginals on 3D walls
+// ═══════════════════════════════════════════════
+function drawWallMarginals(ctx, w, h, maxD) {
+  const N = 80;
+  const step = (2 * RANGE) / (N - 1);
+
+  // p(x) marginal on the back wall (y = RANGE)
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = -RANGE + i * step;
+    const d = gaussian(x, S.mu1, S.s1);
+    const p = projectPoint(x, d, RANGE, w, h);
+    if (i === 0) ctx.moveTo(p.px, p.py);
+    else ctx.lineTo(p.px, p.py);
+  }
+  ctx.strokeStyle = 'rgba(129,140,248,0.6)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // p(y) marginal on the side wall (x = RANGE)
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const y = -RANGE + i * step;
+    const d = gaussian(y, S.mu2, S.s2);
+    const p = projectPoint(RANGE, d, y, w, h);
+    if (i === 0) ctx.moveTo(p.px, p.py);
+    else ctx.lineTo(p.px, p.py);
+  }
+  ctx.strokeStyle = 'rgba(52,211,153,0.6)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// ═══════════════════════════════════════════════
+// 2D Marginal panels
+// ═══════════════════════════════════════════════
+function drawMarginal(canvasId, mu, sigma, color, label) {
+  const canvas = document.getElementById(canvasId);
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const xMin = -5, xMax = 5;
+  const pad = { l: 40, r: 10, t: 10, b: 30 };
+  const pw = w - pad.l - pad.r;
+  const ph = h - pad.t - pad.b;
+
+  // Compute max density for y scale
+  const maxP = gaussian(mu, mu, sigma);
+
+  // Fill under curve
+  ctx.beginPath();
+  const N = 200;
+  for (let i = 0; i <= N; i++) {
+    const x = xMin + (xMax - xMin) * (i / N);
+    const d = gaussian(x, mu, sigma);
+    const px = pad.l + ((x - xMin) / (xMax - xMin)) * pw;
+    const py = pad.t + ph - (d / (maxP * 1.2)) * ph;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  // Close fill
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.lineTo(pad.l, pad.t + ph);
+  ctx.closePath();
+  ctx.fillStyle = color.replace('1)', '0.15)');
+  ctx.fill();
+
+  // Stroke curve
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++) {
+    const x = xMin + (xMax - xMin) * (i / N);
+    const d = gaussian(x, mu, sigma);
+    const px = pad.l + ((x - xMin) / (xMax - xMin)) * pw;
+    const py = pad.t + ph - (d / (maxP * 1.2)) * ph;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Mean line
+  const muPx = pad.l + ((mu - xMin) / (xMax - xMin)) * pw;
+  ctx.beginPath();
+  ctx.moveTo(muPx, pad.t);
+  ctx.lineTo(muPx, pad.t + ph);
+  ctx.strokeStyle = 'rgba(248,250,252,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Axes
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t + ph);
+  ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Labels
+  ctx.font = '11px Segoe UI, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'center';
+  for (let v = -4; v <= 4; v += 2) {
+    const px = pad.l + ((v - xMin) / (xMax - xMin)) * pw;
+    ctx.fillText(v, px, pad.t + ph + 16);
+  }
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText(label, pad.l + pw / 2, pad.t + ph + 28);
+}
+
+// ═══════════════════════════════════════════════
+// Heatmap + contours
+// ═══════════════════════════════════════════════
+function drawHeatmap() {
+  const canvas = document.getElementById('canvas-heatmap');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { l: 40, r: 20, t: 20, b: 40 };
+  const pw = w - pad.l - pad.r;
+  const ph = h - pad.t - pad.b;
+  // Use square area
+  const side = Math.min(pw, ph);
+  const ox = pad.l + (pw - side) / 2;
+  const oy = pad.t + (ph - side) / 2;
+
+  // Compute heatmap via ImageData
+  const res = 200;
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = res;
+  offCanvas.height = res;
+  const offCtx = offCanvas.getContext('2d');
+  const imgData = offCtx.createImageData(res, res);
+  const data = imgData.data;
+
+  let maxD = 0;
+  const densities = new Float32Array(res * res);
+  for (let j = 0; j < res; j++) {
+    const y = RANGE - (2 * RANGE * j) / (res - 1);
+    const dy = gaussian(y, S.mu2, S.s2);
+    for (let i = 0; i < res; i++) {
+      const x = -RANGE + (2 * RANGE * i) / (res - 1);
+      const d = gaussian(x, S.mu1, S.s1) * dy;
+      densities[j * res + i] = d;
+      if (d > maxD) maxD = d;
+    }
+  }
+
+  for (let k = 0; k < res * res; k++) {
+    const t = Math.min(densities[k] / (maxD * 0.95 + 1e-12), 1);
+    const idx = k * 4;
+    data[idx] = Math.round(10 + t * 120);
+    data[idx + 1] = Math.round(10 + t * 80);
+    data[idx + 2] = Math.round(40 + t * 200);
+    data[idx + 3] = 255;
+  }
+  offCtx.putImageData(imgData, 0, 0);
+
+  // Draw scaled
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(offCanvas, ox, oy, side, side);
+
+  // Contour ellipses at 1σ, 2σ, 3σ
+  const levels = [1, 2, 3];
+  const alphas = [0.9, 0.6, 0.35];
+  for (let li = 0; li < levels.length; li++) {
+    const k = levels[li];
+    const rxPx = (k * S.s1 / RANGE) * (side / 2);
+    const ryPx = (k * S.s2 / RANGE) * (side / 2);
+    const cxPx = ox + ((S.mu1 + RANGE) / (2 * RANGE)) * side;
+    const cyPx = oy + ((-S.mu2 + RANGE) / (2 * RANGE)) * side;
+
+    ctx.beginPath();
+    ctx.ellipse(cxPx, cyPx, rxPx, ryPx, 0, 0, 2 * Math.PI);
+    ctx.strokeStyle = `rgba(248,250,252,${alphas[li]})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label
+    ctx.font = '10px Courier New, monospace';
+    ctx.fillStyle = `rgba(248,250,252,${alphas[li]})`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${k}σ`, cxPx + rxPx + 3, cyPx - 2);
+  }
+
+  // Axes
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ox, oy + side);
+  ctx.lineTo(ox + side, oy + side);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(ox, oy);
+  ctx.lineTo(ox, oy + side);
+  ctx.stroke();
+
+  // Tick labels
+  ctx.font = '11px Segoe UI, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'center';
+  for (let v = -4; v <= 4; v += 2) {
+    const px = ox + ((v + RANGE) / (2 * RANGE)) * side;
+    ctx.fillText(v, px, oy + side + 16);
+  }
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('x', ox + side / 2, oy + side + 32);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#64748b';
+  for (let v = -4; v <= 4; v += 2) {
+    const py = oy + ((-v + RANGE) / (2 * RANGE)) * side;
+    ctx.fillText(v, ox - 6, py + 4);
+  }
+  ctx.save();
+  ctx.translate(ox - 28, oy + side / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('y', 0, 0);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════
+// Mixture of Gaussians
+// ═══════════════════════════════════════════════
+const MIX_COLORS = ['#818cf8','#34d399','#f87171','#fbbf24','#38bdf8'];
+
+function mixtureDensity(x, y) {
+  let sum = 0;
+  for (let k = 0; k < S.K; k++) {
+    const angle = 2 * Math.PI * k / S.K;
+    const mux = S.mixSep * Math.cos(angle);
+    const muy = S.mixSep * Math.sin(angle);
+    sum += gaussian(x, mux, S.mixSigma) * gaussian(y, muy, S.mixSigma);
+  }
+  return sum / S.K;
+}
+
+function computeMixGrid() {
+  const key = `${S.K},${S.mixSigma},${S.mixSep}`;
+  if (S.mixGridKey === key && S.mixGrid) return S.mixGrid;
+
+  const pts = [];
+  let maxD = 0;
+  const step = (2 * RANGE) / (GRID_N - 1);
+  for (let i = 0; i < GRID_N; i++) {
+    const row = [];
+    const y = -RANGE + i * step;
+    for (let j = 0; j < GRID_N; j++) {
+      const x = -RANGE + j * step;
+      const d = mixtureDensity(x, y);
+      if (d > maxD) maxD = d;
+      row.push({ x, y, d });
+    }
+    pts.push(row);
+  }
+  S.mixGrid = { pts, maxD };
+  S.mixGridKey = key;
+  return S.mixGrid;
+}
+
+function drawMix3D() {
+  const canvas = document.getElementById('canvas3d-mix');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const { pts, maxD } = computeMixGrid();
+
+  const quads = [];
+  for (let i = 0; i < GRID_N - 1; i++) {
+    for (let j = 0; j < GRID_N - 1; j++) {
+      const p00 = pts[i][j], p01 = pts[i][j + 1];
+      const p10 = pts[i + 1][j], p11 = pts[i + 1][j + 1];
+      const avgD = (p00.d + p01.d + p10.d + p11.d) / 4;
+
+      const c00 = projectPoint(p00.x, p00.y, p00.d, w, h);
+      const c01 = projectPoint(p01.x, p01.y, p01.d, w, h);
+      const c10 = projectPoint(p10.x, p10.y, p10.d, w, h);
+      const c11 = projectPoint(p11.x, p11.y, p11.d, w, h);
+
+      const avgDepth = (c00.depth + c01.depth + c10.depth + c11.depth) / 4;
+      quads.push({ corners: [c00, c01, c11, c10], avgD, avgDepth });
+    }
+  }
+
+  quads.sort((a, b) => b.avgDepth - a.avgDepth);
+
+  for (const q of quads) {
+    const [a, b, c, d] = q.corners;
+    ctx.beginPath();
+    ctx.moveTo(a.px, a.py);
+    ctx.lineTo(b.px, b.py);
+    ctx.lineTo(c.px, c.py);
+    ctx.lineTo(d.px, d.py);
+    ctx.closePath();
+    ctx.fillStyle = densityColor(q.avgD, maxD, 0.85);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(129,140,248,0.12)';
+    const dpr2 = window.devicePixelRatio || 1;
+    ctx.lineWidth = Math.max(0.5 * dpr2, 1) / dpr2;
+    ctx.stroke();
+  }
+
+  // Axes
+  drawAxes3D(ctx, w, h, maxD);
+}
+
+function drawMixHeatmap() {
+  const canvas = document.getElementById('canvas-heatmap-mix');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { l: 40, r: 20, t: 20, b: 40 };
+  const pw = w - pad.l - pad.r;
+  const ph = h - pad.t - pad.b;
+  const side = Math.min(pw, ph);
+  const ox = pad.l + (pw - side) / 2;
+  const oy = pad.t + (ph - side) / 2;
+
+  // Heatmap via ImageData
+  const res = 200;
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = res;
+  offCanvas.height = res;
+  const offCtx = offCanvas.getContext('2d');
+  const imgData = offCtx.createImageData(res, res);
+  const data = imgData.data;
+
+  let maxD = 0;
+  const densities = new Float32Array(res * res);
+  for (let j = 0; j < res; j++) {
+    const y = RANGE - (2 * RANGE * j) / (res - 1);
+    for (let i = 0; i < res; i++) {
+      const x = -RANGE + (2 * RANGE * i) / (res - 1);
+      const d = mixtureDensity(x, y);
+      densities[j * res + i] = d;
+      if (d > maxD) maxD = d;
+    }
+  }
+
+  for (let k = 0; k < res * res; k++) {
+    const t = Math.min(densities[k] / (maxD * 0.95 + 1e-12), 1);
+    const idx = k * 4;
+    data[idx] = Math.round(10 + t * 120);
+    data[idx + 1] = Math.round(10 + t * 80);
+    data[idx + 2] = Math.round(40 + t * 200);
+    data[idx + 3] = 255;
+  }
+  offCtx.putImageData(imgData, 0, 0);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(offCanvas, ox, oy, side, side);
+
+  // Per-component contours (1σ, 2σ circles) and center dots
+  for (let k = 0; k < S.K; k++) {
+    const angle = 2 * Math.PI * k / S.K;
+    const mux = S.mixSep * Math.cos(angle);
+    const muy = S.mixSep * Math.sin(angle);
+    const color = MIX_COLORS[k % MIX_COLORS.length];
+
+    const cxPx = ox + ((mux + RANGE) / (2 * RANGE)) * side;
+    const cyPx = oy + ((-muy + RANGE) / (2 * RANGE)) * side;
+
+    // 1σ and 2σ contours
+    for (const mult of [1, 2]) {
+      const rPx = (mult * S.mixSigma / RANGE) * (side / 2);
+      ctx.beginPath();
+      ctx.arc(cxPx, cyPx, rPx, 0, 2 * Math.PI);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = mult === 1 ? 0.8 : 0.4;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(cxPx, cyPx, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label
+    ctx.font = '10px Courier New, monospace';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.fillText(`k=${k+1}`, cxPx + 7, cyPx - 6);
+  }
+
+  // Axes
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ox, oy + side);
+  ctx.lineTo(ox + side, oy + side);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(ox, oy);
+  ctx.lineTo(ox, oy + side);
+  ctx.stroke();
+
+  ctx.font = '11px Segoe UI, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'center';
+  for (let v = -4; v <= 4; v += 2) {
+    const px = ox + ((v + RANGE) / (2 * RANGE)) * side;
+    ctx.fillText(v, px, oy + side + 16);
+  }
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('z₁', ox + side / 2, oy + side + 32);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#64748b';
+  for (let v = -4; v <= 4; v += 2) {
+    const py = oy + ((-v + RANGE) / (2 * RANGE)) * side;
+    ctx.fillText(v, ox - 6, py + 4);
+  }
+  ctx.save();
+  ctx.translate(ox - 28, oy + side / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('z₂', 0, 0);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════
+// Mouse / touch drag for 3D (shared rotation)
+// ═══════════════════════════════════════════════
+function setup3DDrag(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  let dragging = false;
+  let lastX, lastY;
+
+  canvas.addEventListener('mousedown', e => {
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    S.theta += dx * 0.007;
+    S.phi = Math.max(-1.2, Math.min(1.4, S.phi + dy * 0.007));
+    lastX = e.clientX;
+    lastY = e.clientY;
+    draw3D();
+    drawMix3D();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; });
+
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      dragging = true;
+      lastX = e.touches[0].clientX;
+      lastY = e.touches[0].clientY;
+      e.preventDefault();
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchmove', e => {
+    if (!dragging || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - lastX;
+    const dy = e.touches[0].clientY - lastY;
+    S.theta += dx * 0.007;
+    S.phi = Math.max(-1.2, Math.min(1.4, S.phi + dy * 0.007));
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+    draw3D();
+    drawMix3D();
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => { dragging = false; });
+}
+
+setup3DDrag('canvas3d');
+setup3DDrag('canvas3d-mix');
+
+// ═══════════════════════════════════════════════
+// Slider wiring
+// ═══════════════════════════════════════════════
+function wireSlider(sliderId, valueId, stateKey, fmt) {
+  const sl = document.getElementById(sliderId);
+  const vl = document.getElementById(valueId);
+  sl.addEventListener('input', () => {
+    S[stateKey] = parseFloat(sl.value);
+    vl.textContent = fmt(S[stateKey]);
+    drawAll();
+  });
+}
+
+wireSlider('sl-mu1', 'v-mu1', 'mu1', v => v.toFixed(1));
+wireSlider('sl-s1', 'v-s1', 's1', v => v.toFixed(2));
+wireSlider('sl-mu2', 'v-mu2', 'mu2', v => v.toFixed(1));
+wireSlider('sl-s2', 'v-s2', 's2', v => v.toFixed(2));
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  S.theta = -0.6;
+  S.phi = 0.7;
+  drawAll();
+});
+
+// Mixture controls
+wireSlider('sl-mix-sigma', 'v-mix-sigma', 'mixSigma', v => v.toFixed(2));
+wireSlider('sl-mix-sep', 'v-mix-sep', 'mixSep', v => v.toFixed(1));
+
+// K selector buttons
+document.getElementById('k-selector').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-k]');
+  if (!btn) return;
+  document.querySelectorAll('#k-selector button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  S.K = parseInt(btn.dataset.k);
+  drawAll();
+});
+
+// ═══════════════════════════════════════════════
+// Draw everything
+// ═══════════════════════════════════════════════
+function drawAll() {
+  draw3D();
+  drawMarginal('canvas-mx', S.mu1, S.s1, 'rgba(129,140,248,1)', 'x');
+  drawMarginal('canvas-my', S.mu2, S.s2, 'rgba(52,211,153,1)', 'y');
+  drawHeatmap();
+  drawMix3D();
+  drawMixHeatmap();
+}
+
+// Initial draw
+window.addEventListener('load', () => {
+  drawAll();
+  window.addEventListener('resize', drawAll);
+});
+</script>
+</body>
+</html>

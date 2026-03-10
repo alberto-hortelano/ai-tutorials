@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Truco de Reparametrización - Visualización</title>
+<link rel="stylesheet" href="./shared/theme.css">
+<style>
+  /* File-specific overrides and additions */
+  body {
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+  h1 { font-size: 1.6rem; }
+
+  /* Instructions banner */
+  .instructions {
+    text-align: center;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px 20px;
+    margin: 0 auto 20px;
+    max-width: 700px;
+    font-size: 0.95rem;
+    color: #cbd5e1;
+    line-height: 1.6;
+  }
+  .instructions .step {
+    display: inline;
+    font-weight: 600;
+  }
+  .instructions .step-num {
+    color: #818cf8;
+    font-weight: 700;
+  }
+
+  /* Controls overrides */
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    background: none;
+    padding: 0;
+    border-radius: 0;
+  }
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .control-group label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    min-width: 60px;
+  }
+  .control-group input[type="range"] {
+    width: 200px;
+    accent-color: #818cf8;
+  }
+  .control-group .value {
+    font-family: 'Courier New', monospace;
+    background: #1e293b;
+    padding: 4px 10px;
+    border-radius: 6px;
+    min-width: 50px;
+    text-align: center;
+    font-size: 0.95rem;
+    color: #c4b5fd;
+  }
+  .btn {
+    padding: 10px 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #818cf8;
+    color: #0f172a;
+  }
+  .btn:hover { background: #a5b4fc; }
+  .btn:active { transform: scale(0.97); }
+
+  /* Panels */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto 24px;
+  }
+  .panel {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 20px;
+    border: 2px solid #334155;
+  }
+  .panel.no-reparam { border-color: #f8717150; }
+  .panel.reparam { border-color: #34d39950; }
+  .panel-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .panel.no-reparam .panel-title { color: #f87171; }
+  .panel.reparam .panel-title { color: #34d399; }
+  .panel-formula {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    background: #0f172a;
+    border-radius: 8px;
+  }
+  .panel-status {
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 8px;
+    min-height: 22px;
+  }
+  canvas {
+    border-radius: 8px;
+    background: #0f172a;
+  }
+
+  /* Scatter section */
+  .scatter-section {
+    max-width: 1200px;
+    margin: 0 auto 24px;
+  }
+  .scatter-section h2 {
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+    color: #f8fafc;
+    text-align: center;
+  }
+  .scatter-box {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 20px;
+    border: 2px solid #334155;
+  }
+  .scatter-legend {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+  }
+  .scatter-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Summary */
+  .summary {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .summary-col {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 20px;
+    border: 2px solid #334155;
+  }
+  .summary-col.bad { border-color: #f8717140; }
+  .summary-col.good { border-color: #34d39940; }
+  .summary-col h3 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  .summary-col.bad h3 { color: #f87171; }
+  .summary-col.good h3 { color: #34d399; }
+  .summary-col p {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    line-height: 1.55;
+  }
+  .summary-col code {
+    font-family: 'Courier New', monospace;
+    color: #c4b5fd;
+    font-size: 0.88rem;
+  }
+
+  @media (max-width: 768px) {
+    .panels, .summary { grid-template-columns: 1fr; }
+    .controls { gap: 14px; }
+    .control-group input[type="range"] { width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>El Truco de Reparametrización</h1>
+<p class="subtitle">Por qué muestrear z ~ N(μ, σ²) directamente rompe los gradientes, y cómo arreglarlo</p>
+
+<div class="instructions">
+  <span class="step"><span class="step-num">1.</span> Pulsa <em>Muestrear</em></span> &nbsp;→&nbsp;
+  <span class="step"><span class="step-num">2.</span> Arrastra el slider de μ</span> &nbsp;→&nbsp;
+  <span class="step"><span class="step-num">3.</span> Observa qué pasa con z en cada panel</span>
+</div>
+
+<div class="controls">
+  <button class="btn" id="sample-btn">Muestrear</button>
+  <div class="control-group">
+    <label>μ</label>
+    <input type="range" id="mu-slider" min="-3" max="3" step="0.05" value="0.0">
+    <span class="value" id="mu-value">0.0</span>
+  </div>
+  <div class="control-group">
+    <label>σ</label>
+    <input type="range" id="sigma-slider" min="0.3" max="2.0" step="0.05" value="0.7">
+    <span class="value" id="sigma-value">0.70</span>
+  </div>
+</div>
+
+<div class="panels">
+  <div class="panel no-reparam">
+    <div class="panel-title">✗ Sin reparametrización</div>
+    <div class="panel-formula">z ~ N(μ, σ²) — operación estocástica, no diferenciable</div>
+    <canvas id="canvas-left" height="300"></canvas>
+    <div class="panel-status" id="status-left"></div>
+  </div>
+  <div class="panel reparam">
+    <div class="panel-title">✓ Con reparametrización</div>
+    <div class="panel-formula">ε ~ N(0,1), z = μ + σ·ε — aritmética diferenciable</div>
+    <canvas id="canvas-right" height="300"></canvas>
+    <div class="panel-status" id="status-right"></div>
+  </div>
+</div>
+
+<div class="scatter-section">
+  <h2>μ vs z — pendiente = gradiente</h2>
+  <div class="scatter-box">
+    <canvas id="canvas-scatter" height="280"></canvas>
+    <div class="scatter-legend">
+      <span><span class="legend-dot" style="background:#f87171"></span> Sin reparam (z congelado → pendiente 0)</span>
+      <span><span class="legend-dot" style="background:#34d399"></span> Con reparam (z = μ + σ·ε → pendiente 1)</span>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="summary-col bad">
+    <h3>✗ Sin reparametrización</h3>
+    <p>
+      <code>z</code> se muestreó como un número aleatorio fijo. Cuando μ cambia,
+      <code>z</code> no se entera. PyTorch no puede calcular <code>∂z/∂μ</code>
+      porque la operación de muestreo es una "caja negra" no diferenciable.
+      El encoder del VAE no recibe gradientes y no aprende.
+    </p>
+  </div>
+  <div class="summary-col good">
+    <h3>✓ Con reparametrización</h3>
+    <p>
+      El azar se aísla en <code>ε ~ N(0,1)</code> (constante para los gradientes).
+      Luego <code>z = μ + σ·ε</code> es pura aritmética:
+      <code>∂z/∂μ = 1</code>, <code>∂z/∂σ = ε</code>.
+      Los gradientes fluyen a través de z hasta μ y σ, y el encoder aprende.
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import { setupCanvas } from './shared/canvas.js';
+import { gaussian, randn } from './shared/math.js';
+
+// ═══════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════
+const state = {
+  mu: 0.0,
+  sigma: 0.7,
+  // Current sample
+  epsilon: null,        // the ε drawn on "Muestrear"
+  frozenZ: null,        // z at the moment of sampling (for left panel)
+  muAtSample: null,     // μ at the moment of sampling
+  hasSampled: false,
+  // Scatter trail: each entry is {mu, zFrozen, zReparam}
+  scatterPoints: [],
+};
+
+const muSlider = document.getElementById('mu-slider');
+const sigmaSlider = document.getElementById('sigma-slider');
+const muValue = document.getElementById('mu-value');
+const sigmaValue = document.getElementById('sigma-value');
+const sampleBtn = document.getElementById('sample-btn');
+
+// ═══════════════════════════════════════════════
+// Draw a single Gaussian panel
+// ═══════════════════════════════════════════════
+function drawPanel(canvasId, statusId, opts) {
+  // opts: { mu, sigma, zPoint (number|null), color, showEpsilon (bool), epsilonVal }
+  const canvas = document.getElementById(canvasId);
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const { mu, sigma, zPoint, color, showEpsilon, epsilonVal } = opts;
+
+  const xMin = -5, xMax = 5;
+  const yMax = 1.2;
+  const plotBottom = h - 32;
+  const plotTop = 20;
+  const plotH = plotBottom - plotTop;
+
+  function toX(val) { return ((val - xMin) / (xMax - xMin)) * w; }
+  function toY(val) { return plotBottom - (val / yMax) * plotH; }
+
+  // Grid
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  for (let x = -4; x <= 4; x++) {
+    const sx = toX(x);
+    ctx.beginPath(); ctx.moveTo(sx, plotTop); ctx.lineTo(sx, plotBottom); ctx.stroke();
+  }
+
+  // X axis
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, plotBottom); ctx.lineTo(w, plotBottom); ctx.stroke();
+
+  // Tick labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px Courier New';
+  ctx.textAlign = 'center';
+  for (let x = -4; x <= 4; x += 2) {
+    ctx.fillText(x.toString(), toX(x), plotBottom + 16);
+  }
+
+  // Draw gaussian N(mu, sigma^2)
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let px = 0; px < w; px++) {
+    const xVal = xMin + (px / w) * (xMax - xMin);
+    const yVal = gaussian(xVal, mu, sigma);
+    if (px === 0) ctx.moveTo(px, toY(yVal)); else ctx.lineTo(px, toY(yVal));
+  }
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.fillStyle = color + '12';
+  ctx.beginPath();
+  ctx.moveTo(0, plotBottom);
+  for (let px = 0; px < w; px++) {
+    const xVal = xMin + (px / w) * (xMax - xMin);
+    ctx.lineTo(px, toY(gaussian(xVal, mu, sigma)));
+  }
+  ctx.lineTo(w, plotBottom);
+  ctx.closePath();
+  ctx.fill();
+
+  // Curve label
+  ctx.fillStyle = color;
+  ctx.font = 'bold 12px Segoe UI';
+  ctx.textAlign = 'left';
+  const peakX = toX(mu);
+  const peakY = toY(gaussian(mu, mu, sigma));
+  ctx.fillText(`N(${mu.toFixed(1)}, ${(sigma**2).toFixed(2)})`, peakX + 8, peakY - 6);
+
+  // μ dashed line
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(peakX, plotTop); ctx.lineTo(peakX, plotBottom); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 12px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('μ', peakX, plotTop - 4);
+
+  // Draw z point
+  if (zPoint !== null) {
+    const zx = toX(zPoint);
+    const dotY = plotBottom - 8;
+
+    // Vertical line from curve to dot
+    const yCurve = toY(gaussian(zPoint, mu, sigma));
+    ctx.strokeStyle = color + '50';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.moveTo(zx, yCurve); ctx.lineTo(zx, dotY - 8); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(zx, dotY, 7, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // z label
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 13px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(`z = ${zPoint.toFixed(2)}`, zx, dotY - 16);
+  }
+
+  // Show ε mark on N(0,1) reference (right panel only)
+  if (showEpsilon && epsilonVal !== null) {
+    // Draw faint N(0,1)
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    for (let px = 0; px < w; px++) {
+      const xVal = xMin + (px / w) * (xMax - xMin);
+      const yVal = gaussian(xVal, 0, 1) * 0.4; // scaled down
+      if (px === 0) ctx.moveTo(px, toY(yVal)); else ctx.lineTo(px, toY(yVal));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ε tick
+    const epsX = toX(epsilonVal);
+    if (epsX > 10 && epsX < w - 10) {
+      ctx.strokeStyle = '#818cf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(epsX, plotBottom); ctx.lineTo(epsX, plotBottom - 10); ctx.stroke();
+      ctx.fillStyle = '#818cf8';
+      ctx.font = 'bold 11px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(`ε=${epsilonVal.toFixed(2)}`, epsX, plotBottom + 26);
+    }
+
+    // Small N(0,1) label
+    ctx.fillStyle = '#475569';
+    ctx.font = '10px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.fillText('N(0,1)', toX(0) + 4, toY(gaussian(0, 0, 1) * 0.4) - 4);
+  }
+
+  // Status text
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) {
+    statusEl.textContent = opts.statusText || '';
+    statusEl.style.color = opts.statusColor || '#64748b';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Draw scatter plot (μ vs z)
+// ═══════════════════════════════════════════════
+function drawScatter() {
+  const canvas = document.getElementById('canvas-scatter');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const pts = state.scatterPoints;
+  const muMin = -3.5, muMax = 3.5;
+  const zMin = -5, zMax = 5;
+  const plotLeft = 55, plotRight = w - 20;
+  const plotTop = 20, plotBottom = h - 40;
+  const plotW = plotRight - plotLeft;
+  const plotH = plotBottom - plotTop;
+
+  function toX(mu) { return plotLeft + ((mu - muMin) / (muMax - muMin)) * plotW; }
+  function toY(z) { return plotBottom - ((z - zMin) / (zMax - zMin)) * plotH; }
+
+  // Grid
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  for (let v = -3; v <= 3; v++) {
+    const sx = toX(v);
+    ctx.beginPath(); ctx.moveTo(sx, plotTop); ctx.lineTo(sx, plotBottom); ctx.stroke();
+  }
+  for (let v = -4; v <= 4; v += 2) {
+    const sy = toY(v);
+    ctx.beginPath(); ctx.moveTo(plotLeft, sy); ctx.lineTo(plotRight, sy); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(plotLeft, plotBottom); ctx.lineTo(plotRight, plotBottom); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(plotLeft, plotTop); ctx.lineTo(plotLeft, plotBottom); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px Courier New';
+  ctx.textAlign = 'center';
+  for (let v = -3; v <= 3; v++) ctx.fillText(v.toString(), toX(v), plotBottom + 16);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px Segoe UI';
+  ctx.fillText('μ', plotLeft + plotW / 2, plotBottom + 32);
+
+  ctx.textAlign = 'right';
+  ctx.font = '11px Courier New';
+  for (let v = -4; v <= 4; v += 2) ctx.fillText(v.toString(), plotLeft - 8, toY(v) + 4);
+  ctx.save();
+  ctx.translate(14, plotTop + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.font = '12px Segoe UI';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('z', 0, 0);
+  ctx.restore();
+
+  // Empty state
+  if (pts.length === 0) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '14px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText('Pulsa "Muestrear" y luego arrastra μ para ver los trazos', w / 2, h / 2);
+    return;
+  }
+
+  // Group points by sample round
+  // Each round starts with a fresh sample. We draw lines connecting consecutive
+  // points of the same round.
+
+  // Draw red dots + lines (frozen z)
+  let prevRed = null;
+  for (const p of pts) {
+    const sx = toX(p.mu);
+    const sy = toY(p.zFrozen);
+    if (sx < plotLeft || sx > plotRight || sy < plotTop || sy > plotBottom) { prevRed = null; continue; }
+
+    // Connecting line
+    if (prevRed && p.round === prevRed.round) {
+      ctx.strokeStyle = '#f8717140';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(prevRed.sx, prevRed.sy); ctx.lineTo(sx, sy); ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#f87171';
+    ctx.fill();
+    prevRed = { sx, sy, round: p.round };
+  }
+
+  // Draw green dots + lines (reparam z)
+  let prevGreen = null;
+  for (const p of pts) {
+    const sx = toX(p.mu);
+    const sy = toY(p.zReparam);
+    if (sx < plotLeft || sx > plotRight || sy < plotTop || sy > plotBottom) { prevGreen = null; continue; }
+
+    if (prevGreen && p.round === prevGreen.round) {
+      ctx.strokeStyle = '#34d39940';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(prevGreen.sx, prevGreen.sy); ctx.lineTo(sx, sy); ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#34d399';
+    ctx.fill();
+    prevGreen = { sx, sy, round: p.round };
+  }
+
+  // Highlight last point of each color
+  if (pts.length > 0) {
+    const last = pts[pts.length - 1];
+
+    // Red highlight
+    const rx = toX(last.mu), ry = toY(last.zFrozen);
+    if (rx >= plotLeft && rx <= plotRight && ry >= plotTop && ry <= plotBottom) {
+      ctx.beginPath(); ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#f87171'; ctx.fill();
+      ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // Green highlight
+    const gx = toX(last.mu), gy = toY(last.zReparam);
+    if (gx >= plotLeft && gx <= plotRight && gy >= plotTop && gy <= plotBottom) {
+      ctx.beginPath(); ctx.arc(gx, gy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#34d399'; ctx.fill();
+      ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Draw everything
+// ═══════════════════════════════════════════════
+function drawAll() {
+  const { mu, sigma, epsilon, frozenZ, hasSampled } = state;
+
+  // Compute current z for reparam panel
+  const reparamZ = hasSampled ? mu + sigma * epsilon : null;
+
+  // Left panel — sin reparam: z is frozen at sample time
+  drawPanel('canvas-left', 'status-left', {
+    mu,
+    sigma,
+    zPoint: frozenZ,
+    color: '#f87171',
+    showEpsilon: false,
+    epsilonVal: null,
+    statusText: hasSampled
+      ? (Math.abs(mu - state.muAtSample) > 0.1
+          ? 'z no responde a μ → no hay gradiente'
+          : 'z muestreado — ahora arrastra μ')
+      : '',
+    statusColor: '#f87171',
+  });
+
+  // Right panel — con reparam: z = mu + sigma * eps, moves with mu
+  drawPanel('canvas-right', 'status-right', {
+    mu,
+    sigma,
+    zPoint: reparamZ,
+    color: '#34d399',
+    showEpsilon: true,
+    epsilonVal: epsilon,
+    statusText: hasSampled
+      ? (Math.abs(mu - state.muAtSample) > 0.1
+          ? `z = μ + σ·ε → ∂z/∂μ = 1`
+          : 'z muestreado — ahora arrastra μ')
+      : '',
+    statusColor: '#34d399',
+  });
+
+  drawScatter();
+}
+
+// ═══════════════════════════════════════════════
+// Sampling
+// ═══════════════════════════════════════════════
+let sampleRound = 0;
+
+sampleBtn.addEventListener('click', () => {
+  const eps = randn();
+  const mu = state.mu;
+  const sigma = state.sigma;
+  const z = mu + sigma * eps;
+
+  state.epsilon = eps;
+  state.frozenZ = z;
+  state.muAtSample = mu;
+  state.hasSampled = true;
+  sampleRound++;
+
+  // Record initial scatter point
+  state.scatterPoints.push({
+    mu, zFrozen: z, zReparam: z, round: sampleRound,
+  });
+  trimScatter();
+
+  drawAll();
+});
+
+// ═══════════════════════════════════════════════
+// μ slider interaction
+// ═══════════════════════════════════════════════
+muSlider.addEventListener('input', () => {
+  state.mu = parseFloat(muSlider.value);
+  muValue.textContent = state.mu.toFixed(1);
+
+  if (state.hasSampled) {
+    const reparamZ = state.mu + state.sigma * state.epsilon;
+    state.scatterPoints.push({
+      mu: state.mu,
+      zFrozen: state.frozenZ,
+      zReparam: reparamZ,
+      round: sampleRound,
+    });
+    trimScatter();
+  }
+
+  drawAll();
+});
+
+sigmaSlider.addEventListener('input', () => {
+  state.sigma = parseFloat(sigmaSlider.value);
+  sigmaValue.textContent = state.sigma.toFixed(2);
+
+  // Update reparam z but not frozen z
+  if (state.hasSampled) {
+    const reparamZ = state.mu + state.sigma * state.epsilon;
+    state.scatterPoints.push({
+      mu: state.mu,
+      zFrozen: state.frozenZ,
+      zReparam: reparamZ,
+      round: sampleRound,
+    });
+    trimScatter();
+  }
+
+  drawAll();
+});
+
+function trimScatter() {
+  if (state.scatterPoints.length > 600) {
+    state.scatterPoints = state.scatterPoints.slice(-400);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Resize
+// ═══════════════════════════════════════════════
+window.addEventListener('resize', drawAll);
+
+// Initial draw
+drawAll();
+</script>
+</body>
+</html>

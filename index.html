@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XCS236 — Presentaciones Animadas</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="./styles/topnav.css">
+  <style>
+    :root {
+      --body-bg: #0f172a;
+      --panel-bg: #1e293b;
+      --border: #334155;
+      --accent: #818cf8;
+      --insight: #34d399;
+      --code: #c4b5fd;
+      --text-primary: #f8fafc;
+      --text-secondary: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dimmed: #64748b;
+      --warning: #fbbf24;
+      --error: #f87171;
+      --info: #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--body-bg);
+      color: var(--text-secondary);
+      min-height: 100vh;
+      padding: 0 0 80px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      margin-top: 24px;
+      margin-bottom: 48px;
+    }
+
+    header h1 {
+      color: var(--text-primary);
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Stats bar */
+    .stats {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      padding: 14px 20px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .stat {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .stat-num {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text-dimmed);
+    }
+
+
+    /* Module sections */
+    .module {
+      margin-top: 40px;
+    }
+
+    .module-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .module-num {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      background: rgba(129, 140, 248, 0.12);
+      padding: 3px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .module-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .module-meta {
+      font-size: 0.75rem;
+      color: var(--text-dimmed);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* Lesson grid */
+    .lesson-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    /* Lesson card */
+    .lesson-card {
+      background: var(--panel-bg);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    a.lesson-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(129, 140, 248, 0.15);
+    }
+
+    .lesson-card.upcoming {
+      opacity: 0.35;
+      pointer-events: none;
+      border-style: dashed;
+    }
+
+    .lesson-card .num {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-dimmed);
+      background: rgba(100, 116, 139, 0.2);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .lesson-card h3 {
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0;
+      padding-right: 36px;
+    }
+
+    a.lesson-card h3 { color: var(--accent); }
+    .lesson-card.upcoming h3 { color: var(--text-muted); }
+
+    .lesson-card .desc {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
+    /* Formula box inside cards */
+    .lesson-card .formula {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-align: center;
+      overflow-x: auto;
+    }
+    .lesson-card .formula .katex {
+      font-size: 0.88em;
+      color: var(--code);
+    }
+
+    /* Thumbnail canvas inside cards */
+    .lesson-card .thumbnail {
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+    }
+    .lesson-card .thumbnail canvas {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+    }
+
+    .lesson-card .tags {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+
+    .tag {
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+    .tag-ps {
+      background: rgba(129, 140, 248, 0.15);
+      color: var(--accent);
+    }
+    .tag-topic {
+      background: rgba(52, 211, 153, 0.12);
+      color: var(--insight);
+    }
+
+    .lesson-card .meta {
+      color: var(--text-dimmed);
+      font-size: 0.72rem;
+      margin-top: auto;
+      padding-top: 4px;
+    }
+
+    /* Ready badge */
+    .badge-ready {
+      display: inline-block;
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--insight);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    /* ElevenLabs audio badge */
+    .badge-11 {
+      position: absolute;
+      top: 12px;
+      right: 48px;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #f8fafc;
+      background: rgba(129, 140, 248, 0.35);
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+    }
+
+    /* ====== Quiz section ====== */
+    .quiz {
+      margin-top: 20px;
+    }
+
+    .quiz-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: none;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      width: 100%;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .quiz-toggle:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    .quiz-toggle .arrow {
+      transition: transform 0.2s;
+      font-size: 0.7rem;
+    }
+    .quiz-toggle.open .arrow {
+      transform: rotate(90deg);
+    }
+    .quiz-toggle .q-count {
+      margin-left: auto;
+      font-size: 0.72rem;
+      color: var(--text-dimmed);
+    }
+
+    .quiz-body {
+      display: none;
+      margin-top: 12px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .quiz-body.open { display: block; }
+
+    /* API key warning banner */
+    .quiz-nokey {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 12px 16px;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: var(--warning);
+    }
+    .quiz-nokey .nokey-text {
+      flex: 1;
+    }
+    .quiz-nokey .nokey-btn {
+      padding: 6px 14px;
+      background: var(--warning);
+      color: var(--body-bg);
+      border: none;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .quiz-nokey .nokey-btn:hover { opacity: 0.85; }
+
+    /* Settings modal (shared with player) */
+    .settings-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .settings-modal.open { display: flex; }
+
+    .settings-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 420px;
+      max-width: 90vw;
+    }
+    .settings-panel h2 {
+      color: var(--text-primary);
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+    }
+    .settings-panel label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+    .settings-panel select,
+    .settings-panel input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--body-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+    .settings-panel input[type="text"] {
+      font-family: monospace;
+    }
+    .settings-panel .hint {
+      font-size: 0.72rem;
+      color: var(--text-dimmed);
+      margin-top: 4px;
+    }
+    .settings-panel .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      justify-content: flex-end;
+    }
+    .settings-panel .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .settings-panel .btn-primary {
+      background: var(--accent);
+      color: var(--body-bg);
+    }
+    .settings-panel .btn-primary:hover { background: #a5b4fc; }
+    .settings-panel .btn-secondary {
+      background: var(--border);
+      color: var(--text-secondary);
+    }
+    .settings-panel .btn-secondary:hover { background: #475569; }
+
+    /* Question area */
+    .quiz-progress {
+      font-size: 0.75rem;
+      color: var(--text-dimmed);
+      margin-bottom: 12px;
+    }
+    .quiz-progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .quiz-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .quiz-question {
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .quiz-question .katex { font-size: 0.9em; }
+
+    .quiz-textarea {
+      width: 100%;
+      min-height: 100px;
+      background: var(--body-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-family: inherit;
+      line-height: 1.6;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+    .quiz-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .quiz-textarea:disabled {
+      opacity: 0.5;
+    }
+
+    .quiz-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      align-items: center;
+    }
+
+    .quiz-btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .quiz-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .quiz-btn-primary {
+      background: var(--accent);
+      color: var(--body-bg);
+    }
+    .quiz-btn-primary:hover:not(:disabled) { background: #a5b4fc; }
+
+    .quiz-btn-secondary {
+      background: var(--border);
+      color: var(--text-secondary);
+    }
+    .quiz-btn-secondary:hover:not(:disabled) { background: #475569; }
+
+    .quiz-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: quiz-spin 0.6s linear infinite;
+    }
+    @keyframes quiz-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Feedback */
+    .quiz-feedback {
+      margin-top: 16px;
+      padding: 16px 18px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      display: none;
+    }
+    .quiz-feedback.visible { display: block; }
+
+    .quiz-feedback.correct {
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+    .quiz-feedback.incorrect {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+    .quiz-feedback.neutral {
+      background: rgba(129, 140, 248, 0.08);
+      border: 1px solid rgba(129, 140, 248, 0.25);
+    }
+
+    .quiz-feedback .verdict {
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 0.88rem;
+    }
+    .quiz-feedback.correct .verdict { color: var(--insight); }
+    .quiz-feedback.incorrect .verdict { color: var(--error); }
+    .quiz-feedback.neutral .verdict { color: var(--accent); }
+
+    .quiz-feedback .explanation {
+      color: var(--text-secondary);
+    }
+
+    /* Summary */
+    .quiz-summary {
+      text-align: center;
+      padding: 20px;
+    }
+    .quiz-summary .score {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .quiz-summary .msg {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+    .quiz-summary .restart-btn {
+      margin-top: 14px;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      color: var(--text-dimmed);
+      font-size: 0.78rem;
+      line-height: 1.8;
+    }
+
+    footer kbd {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.72rem;
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 data-i18n="index.title">XCS236: Presentaciones Animadas</h1>
+      <p class="subtitle" data-i18n="index.subtitle">
+        Todos los conceptos de Deep Generative Models, explicados con animaciones estilo 3Blue1Brown.
+        Organizados siguiendo el orden del curso de Stanford.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-num" data-stat="total">0</span>
+          <span class="stat-label" data-i18n="index.lessonsPlanned">lecciones planificadas</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" data-stat="ready">0</span>
+          <span class="stat-label" data-i18n="index.available">disponible</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" data-stat="modules">0</span>
+          <span class="stat-label" data-i18n="index.modules">m&oacute;dulos</span>
+        </div>
+      </div>
+    </header>
+
+    <div id="modules-container"></div>
+
+    <!-- Settings modal -->
+    <div class="settings-modal" id="settings-modal">
+      <div class="settings-panel">
+        <h2 data-i18n="settings.title">Configuraci&oacute;n</h2>
+        <label for="cfg-anthropic-key" data-i18n="settings.anthropicKeyIdx">Anthropic API Key</label>
+        <input type="text" id="cfg-anthropic-key" placeholder="sk-ant-..." autocomplete="off">
+        <p class="hint" data-i18n="settings.anthropicHint">Se usa para corregir las preguntas de repaso con Claude. Se guarda solo en tu navegador (localStorage).</p>
+
+        <hr class="settings-share-sep">
+        <button class="btn-share" id="btn-share-keys" data-i18n="share.btn">Compartir claves</button>
+
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="cfg-cancel" data-i18n="settings.cancel">Cancelar</button>
+          <button class="btn btn-primary" id="cfg-save" data-i18n="settings.save">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span data-i18n="index.footer1">XCS236 Deep Generative Models &mdash; Stanford Online</span><br>
+      <span data-i18n="index.footer2">Controles del player:</span> <kbd>Espacio</kbd> <span data-i18n="index.footerPlayPause">play/pause</span> &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> <span data-i18n="index.footerSeek">seek 5s</span>
+    </footer>
+  </div>
+
+  <script type="module" src="./index-main.ts"></script>
+</body>
+</html>

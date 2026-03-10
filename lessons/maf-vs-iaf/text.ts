@@ -1,0 +1,428 @@
+// Bilingual text for MAF vs IAF lesson
+
+import { getLang } from '../../engine/i18n';
+import type { Lang, SubtitleCue } from '../../engine/types';
+
+export interface SceneText {
+  id: string;
+  narration: string;
+  subtitleCues: SubtitleCue[];
+  topic: string;
+  title: string;
+  [field: string]: string | SubtitleCue[];
+}
+
+export interface LessonText {
+  lessonTitle: string;
+  lessonSubtitle: string;
+  [key: string]: string | SceneText;
+}
+
+export const text: Record<Lang, LessonText> = {
+  es: {
+    lessonTitle: 'MAF vs IAF',
+    lessonSubtitle: 'El trade-off densidad-rápida vs muestreo-rápido',
+    scene1: {
+      id: 'Estructura autoregresiva',
+      narration: 'Piensa en fichas de dominó. Cada ficha solo puede ver las que ya cayeron antes que ella. La primera ficha cae sola, la segunda depende de la primera, la tercera de las dos anteriores. Esta dependencia en cadena produce un Jacobiano triangular inferior, donde el determinante es simplemente el producto de la diagonal.',
+      subtitleCues: [
+        { time: 0.0, text: 'Fichas de dominó: cada una ve las anteriores' },
+        { time: 0.12, text: 'x₁ depende solo de z₁' },
+        { time: 0.25, text: 'x₂ depende de z₁ y z₂' },
+        { time: 0.38, text: 'x₃ depende de z₁, z₂ y z₃' },
+        { time: 0.5, text: 'Dependencia en cadena → estructura triangular' },
+        { time: 0.62, text: 'Jacobiano = triangular inferior' },
+        { time: 0.75, text: 'det = producto de la diagonal' },
+        { time: 0.88, text: 'Base de MAF e IAF' },
+      ],
+      topic: 'Estructura autoregresiva en normalizing flows. Cada xᵢ depende de z₁,...,zᵢ. Resulta en Jacobiano triangular inferior. det = ∏ diag. Base de MAF e IAF.',
+      title: 'Estructura autoregresiva',
+      dep1: 'x₁ ← z₁',
+      dep2: 'x₂ ← z₁, z₂',
+      dep3: 'x₃ ← z₁, z₂, z₃',
+      depD: 'xᴅ ← z₁, ..., zᴅ',
+      triangular: 'Jacobiano triangular inferior',
+    },
+    scene2: {
+      id: 'MAF',
+      narration: 'MAF es como un lector rápido que puede analizar un libro entero de un vistazo: dado un x completo, NADE calcula todos los parámetros en una sola pasada. Pero generar una muestra nueva es como escribir un libro palabra por palabra: cada palabra depende de las anteriores. Densidad rápida, muestreo lento.',
+      subtitleCues: [
+        { time: 0.0, text: 'MAF: Masked Autoregressive Flow' },
+        { time: 0.12, text: 'Leer rápido: dado x, NADE procesa todo de golpe' },
+        { time: 0.25, text: 'NADE: 1 pasada → todos los μᵢ, σᵢ' },
+        { time: 0.38, text: 'zᵢ = (xᵢ − μᵢ)/σᵢ — todo en paralelo' },
+        { time: 0.5, text: 'Densidad: rápida (1 pasada forward)' },
+        { time: 0.62, text: 'Escribir lento: generar palabra por palabra' },
+        { time: 0.75, text: 'Muestreo: secuencial (D pasos)' },
+        { time: 0.88, text: 'MAF brilla en entrenamiento y evaluación de densidad' },
+      ],
+      topic: 'MAF (Masked Autoregressive Flow). Dado x, NADE computa todos los condicionales en O(1). zᵢ = (xᵢ − μᵢ)/σᵢ en paralelo. Muestreo secuencial O(D).',
+      title: 'MAF: Masked Autoregressive Flow',
+      samplingLabel: 'Muestreo',
+      densityLabel: 'Densidad',
+      slow: 'Secuencial (lento)',
+      fast: 'Paralelo (rápido)',
+      nadePass: 'NADE: 1 pasada → todos μᵢ, σᵢ',
+      parallelZ: 'zᵢ = (xᵢ − μᵢ)/σᵢ en paralelo',
+    },
+    scene3: {
+      id: 'IAF',
+      narration: 'IAF es el espejo exacto de MAF. Ahora la dirección autoregresiva coincide con la dirección de generación: es como un escritor rápido que escribe un libro de corrido en una sola pasada. Pero si le das un libro y le pides evaluar su probabilidad, tiene que deshacerlo palabra por palabra. Muestreo rápido, densidad lenta.',
+      subtitleCues: [
+        { time: 0.0, text: 'IAF: Inverse Autoregressive Flow' },
+        { time: 0.12, text: 'El espejo exacto de MAF' },
+        { time: 0.25, text: 'Escritor rápido: genera de corrido' },
+        { time: 0.38, text: 'Dirección autoregresiva = dirección de generación' },
+        { time: 0.5, text: 'z → red → x en 1 pasada (rápido)' },
+        { time: 0.62, text: 'Muestreo: paralelo (1 pasada)' },
+        { time: 0.75, text: 'Densidad: invertir secuencialmente (D pasos)' },
+        { time: 0.88, text: 'IAF brilla en generación y como decoder de VAE' },
+      ],
+      topic: 'IAF (Inverse Autoregressive Flow). Muestreo paralelo O(1) porque la dirección autoregresiva coincide con la generación. Densidad secuencial O(D).',
+      title: 'IAF: Inverse Autoregressive Flow',
+      samplingLabel: 'Muestreo',
+      densityLabel: 'Densidad',
+      fast: 'Paralelo (rápido)',
+      slow: 'Secuencial (lento)',
+      genDirection: 'Dirección autoregresiva = generación',
+      whyFast: 'z → red → x (1 pasada)',
+    },
+    scene4: {
+      id: 'El trade-off',
+      narration: 'No hay almuerzo gratis: la asimetría es exactamente opuesta. MAF es como un crítico literario que lee rápido pero escribe lento. IAF es como un novelista prolífico que escribe rápido pero le cuesta evaluar textos ajenos. Si necesitas evaluar densidades, elige MAF. Si necesitas generar muestras, elige IAF.',
+      subtitleCues: [
+        { time: 0.0, text: 'No hay almuerzo gratis' },
+        { time: 0.12, text: 'La asimetría es exactamente opuesta' },
+        { time: 0.25, text: 'MAF = crítico literario: lee rápido, escribe lento' },
+        { time: 0.38, text: 'MAF: densidad O(1), muestreo O(D)' },
+        { time: 0.5, text: 'IAF = novelista prolífico: escribe rápido, evalúa lento' },
+        { time: 0.62, text: 'IAF: muestreo O(1), densidad O(D)' },
+        { time: 0.75, text: 'MAF → MLE, evaluación de densidad' },
+        { time: 0.88, text: 'IAF → generación rápida, decoder de VAE' },
+      ],
+      topic: 'Trade-off MAF vs IAF. No free lunch. MAF: fast density, slow sampling → MLE training, density estimation. IAF: fast sampling, slow density → VAE decoder, generation.',
+      title: 'El trade-off',
+      mafLabel: 'MAF',
+      iafLabel: 'IAF',
+      densityFast: 'Densidad: O(1)',
+      densitySlow: 'Densidad: O(D)',
+      samplingFast: 'Muestreo: O(1)',
+      samplingSlow: 'Muestreo: O(D)',
+      appMaf: 'MLE, evaluación de densidad',
+      appIaf: 'Generación, decoder VAE',
+    },
+    scene5: {
+      id: 'MADE',
+      narration: 'MADE es como poner cinta adhesiva sobre ciertos cables de una red neuronal. Los cables tapados no transmiten señal: son los ceros de la máscara. Los cables libres pasan información. Con la cinta en los lugares correctos, la salida i solo puede ver las entradas uno a i. Toda la estructura autoregresiva en una sola pasada forward.',
+      subtitleCues: [
+        { time: 0.0, text: 'MADE: Masked Autoencoder for Distribution Estimation' },
+        { time: 0.12, text: 'Cinta adhesiva sobre cables de la red' },
+        { time: 0.25, text: 'Cables tapados = bloqueados (máscara = 0)' },
+        { time: 0.38, text: 'Cables libres = permitidos (máscara = 1)' },
+        { time: 0.5, text: 'W_efectiva = W elemento-a-elemento × Máscara M' },
+        { time: 0.62, text: 'Resultado: salida i depende solo de entradas 1..i' },
+        { time: 0.75, text: 'Estructura autoregresiva en 1 pasada forward' },
+        { time: 0.88, text: 'Base tanto de MAF como de IAF' },
+      ],
+      topic: 'MADE: Máscara binaria M sobre pesos W. W_eff = W ⊙ M. Celdas bloqueadas (gris) vs permitidas (color). Fuerza estructura autoregresiva.',
+      title: 'MADE: eficiencia con máscaras',
+      fullNet: 'Red completa',
+      maskedNet: 'Red con máscara',
+      onePass: 'Una pasada → todos los parámetros',
+      weightMatrix: 'Pesos W',
+      maskMatrix: 'Máscara M',
+      effectiveMatrix: 'W_eff = W ⊙ M',
+      allowed: 'Permitido (1)',
+      blocked: 'Bloqueado (0)',
+    },
+    scene6: {
+      id: 'Demo de velocidad',
+      narration: 'Imagina una carrera para generar una imagen MNIST de 784 píxeles. MAF es como un escriba medieval que dibuja cada pixel uno por uno: 784 pasos secuenciales. IAF es como una impresora láser: una sola pasada y listo. Google usó destilación para obtener lo mejor de ambos: entrenas un maestro MAF y lo destilas a un estudiante IAF. Así nació Parallel WaveNet.',
+      subtitleCues: [
+        { time: 0.0, text: 'Carrera: generar MNIST (784 píxeles)' },
+        { time: 0.12, text: 'MAF = escriba medieval: pixel por pixel' },
+        { time: 0.25, text: 'MAF: 784 pasos secuenciales...' },
+        { time: 0.38, text: 'IAF = impresora láser: una pasada' },
+        { time: 0.5, text: 'IAF: 1 pasada → listo' },
+        { time: 0.62, text: 'Solución: destilación (teacher-student)' },
+        { time: 0.75, text: 'MAF teacher (buena densidad) → IAF student (rápido)' },
+        { time: 0.88, text: 'Parallel WaveNet: audio en tiempo real' },
+      ],
+      topic: 'Carrera de muestreo: MAF 784 pasos vs IAF 1 pasada. Google destilación: MAF teacher → IAF student (Parallel WaveNet).',
+      title: 'Demo de velocidad',
+      densityLabel: 'Densidad',
+      samplingLabel: 'Muestreo',
+      mafLabel: 'MAF',
+      iafLabel: 'IAF',
+      passes1: '1 pasada',
+      passesD: 'D pasadas',
+      raceTitle: 'Generar imagen MNIST (D=784)',
+      mafSteps: 'MAF: paso',
+      iafDone: 'IAF: listo',
+      distillation: 'Parallel WaveNet: MAF teacher → IAF student',
+    },
+    scene7: {
+      id: 'Resumen del módulo',
+      narration: 'Resumen del módulo completo: los normalizing flows son láminas de goma matemáticas que transforman Gaussianas simples en distribuciones complejas. El secreto es diseñar Jacobianos tratables. Coupling layers y estructuras autoregresivas son los dos paradigmas. Y MAF e IAF encarnan el trade-off fundamental: el crítico rápido versus el escritor rápido.',
+      subtitleCues: [
+        { time: 0.0, text: 'Normalizing Flows: resumen del módulo' },
+        { time: 0.12, text: 'Láminas de goma matemáticas' },
+        { time: 0.25, text: 'Gaussiana simple → distribución compleja' },
+        { time: 0.38, text: 'Secreto: Jacobianos tratables (triangulares)' },
+        { time: 0.5, text: 'Paradigma 1: Coupling (NICE, RealNVP)' },
+        { time: 0.62, text: 'Paradigma 2: Autoregresivo (MAF, IAF)' },
+        { time: 0.75, text: 'MAF (crítico rápido) vs IAF (escritor rápido)' },
+        { time: 0.88, text: 'Conexión: IAF como decoder perfecto de VAE' },
+      ],
+      topic: 'Resumen del módulo de Normalizing Flows. Cambio de variables, Jacobiano, determinante. Arquitecturas: coupling (NICE, RealNVP) y autoregresivas (MAF, IAF). Conexiones con VAEs (IAF decoder) y futuras GANs.',
+      title: 'Resumen: Normalizing Flows',
+      center: 'Normalizing Flows',
+      branch1: 'Cambio de variables',
+      branch2: 'Arquitecturas',
+      branch3: 'MAF vs IAF',
+      detail1: 'p(x) = p(z)|det J|⁻¹',
+      detail2: 'Coupling · Autoregresivo',
+      detail3: 'Densidad ↔ Muestreo',
+      connection: 'Conexión: IAF como decoder de VAE',
+    },
+  },
+  en: {
+    lessonTitle: 'MAF vs IAF',
+    lessonSubtitle: 'The density-fast vs sampling-fast trade-off',
+    scene1: {
+      id: 'Autoregressive structure',
+      narration: 'Think of dominoes. Each domino can only see the ones that already fell before it. The first falls alone, the second depends on the first, the third on both. This chain dependency produces a lower triangular Jacobian, where the determinant is simply the diagonal product.',
+      subtitleCues: [
+        { time: 0.0, text: 'Dominoes: each one sees only the previous ones' },
+        { time: 0.12, text: 'x₁ depends only on z₁' },
+        { time: 0.25, text: 'x₂ depends on z₁ and z₂' },
+        { time: 0.38, text: 'x₃ depends on z₁, z₂, and z₃' },
+        { time: 0.5, text: 'Chain dependency → triangular structure' },
+        { time: 0.62, text: 'Jacobian = lower triangular' },
+        { time: 0.75, text: 'det = diagonal product' },
+        { time: 0.88, text: 'Foundation of MAF and IAF' },
+      ],
+      topic: 'Autoregressive structure in normalizing flows. Each xᵢ depends on z₁,...,zᵢ. Results in lower triangular Jacobian. det = ∏ diag. Basis of MAF and IAF.',
+      title: 'Autoregressive structure',
+      dep1: 'x₁ ← z₁',
+      dep2: 'x₂ ← z₁, z₂',
+      dep3: 'x₃ ← z₁, z₂, z₃',
+      depD: 'xᴅ ← z₁, ..., zᴅ',
+      triangular: 'Lower triangular Jacobian',
+    },
+    scene2: {
+      id: 'MAF',
+      narration: 'MAF is like a speed reader who can analyze an entire book at a glance: given a complete x, NADE computes all parameters in one forward pass. But generating a new sample is like writing a book word by word: each word depends on the previous ones. Fast density, slow sampling.',
+      subtitleCues: [
+        { time: 0.0, text: 'MAF: Masked Autoregressive Flow' },
+        { time: 0.12, text: 'Speed reader: given x, NADE processes everything at once' },
+        { time: 0.25, text: 'NADE: 1 pass → all the parameters' },
+        { time: 0.38, text: 'zᵢ = (xᵢ − μᵢ)/σᵢ — all in parallel' },
+        { time: 0.5, text: 'Density: fast (1 forward pass)' },
+        { time: 0.62, text: 'Slow writer: generate word by word' },
+        { time: 0.75, text: 'Sampling: sequential (D steps)' },
+        { time: 0.88, text: 'MAF shines in training and density evaluation' },
+      ],
+      topic: 'MAF (Masked Autoregressive Flow). Given x, NADE computes all conditionals in O(1). zᵢ = (xᵢ − μᵢ)/σᵢ in parallel. Sequential sampling O(D).',
+      title: 'MAF: Masked Autoregressive Flow',
+      samplingLabel: 'Sampling',
+      densityLabel: 'Density',
+      slow: 'Sequential (slow)',
+      fast: 'Parallel (fast)',
+      nadePass: 'NADE: 1 pass → all μᵢ, σᵢ',
+      parallelZ: 'zᵢ = (xᵢ − μᵢ)/σᵢ in parallel',
+    },
+    scene3: {
+      id: 'IAF',
+      narration: 'IAF is the exact mirror of MAF. Now the autoregressive direction matches the generation direction: it is like a prolific novelist who writes a book in one go. But if you hand the novelist a book and ask for its probability, it must undo it word by word. Fast sampling, slow density.',
+      subtitleCues: [
+        { time: 0.0, text: 'IAF: Inverse Autoregressive Flow' },
+        { time: 0.12, text: 'The exact mirror of MAF' },
+        { time: 0.25, text: 'Prolific novelist: writes in one go' },
+        { time: 0.38, text: 'Autoregressive direction = generation direction' },
+        { time: 0.5, text: 'z → network → x in 1 pass (fast)' },
+        { time: 0.62, text: 'Sampling: parallel (1 pass)' },
+        { time: 0.75, text: 'Density: invert sequentially (D steps)' },
+        { time: 0.88, text: 'IAF shines in generation and as VAE decoder' },
+      ],
+      topic: 'IAF (Inverse Autoregressive Flow). Parallel sampling O(1) because autoregressive direction matches generation. Sequential density O(D).',
+      title: 'IAF: Inverse Autoregressive Flow',
+      samplingLabel: 'Sampling',
+      densityLabel: 'Density',
+      fast: 'Parallel (fast)',
+      slow: 'Sequential (slow)',
+      genDirection: 'Autoregressive direction = generation',
+      whyFast: 'z → network → x (1 pass)',
+    },
+    scene4: {
+      id: 'The trade-off',
+      narration: 'No free lunch: the asymmetry is exactly opposite. MAF is like a literary critic who reads fast but writes slowly. IAF is like a prolific novelist who writes fast but struggles to evaluate others. If you need density evaluation, choose MAF. If you need fast generation, choose IAF.',
+      subtitleCues: [
+        { time: 0.0, text: 'No free lunch' },
+        { time: 0.12, text: 'The asymmetry is exactly opposite' },
+        { time: 0.25, text: 'MAF = literary critic: reads fast, writes slowly' },
+        { time: 0.38, text: 'MAF: density O(1), sampling O(D)' },
+        { time: 0.5, text: 'IAF = prolific novelist: writes fast, evaluates slowly' },
+        { time: 0.62, text: 'IAF: sampling O(1), density O(D)' },
+        { time: 0.75, text: 'MAF → MLE, density evaluation' },
+        { time: 0.88, text: 'IAF → fast generation, VAE decoder' },
+      ],
+      topic: 'MAF vs IAF trade-off. No free lunch. MAF: fast density, slow sampling → MLE training, density estimation. IAF: fast sampling, slow density → VAE decoder, generation.',
+      title: 'The trade-off',
+      mafLabel: 'MAF',
+      iafLabel: 'IAF',
+      densityFast: 'Density: O(1)',
+      densitySlow: 'Density: O(D)',
+      samplingFast: 'Sampling: O(1)',
+      samplingSlow: 'Sampling: O(D)',
+      appMaf: 'MLE, density evaluation',
+      appIaf: 'Generation, VAE decoder',
+    },
+    scene5: {
+      id: 'MADE',
+      narration: 'MADE is like putting tape over certain wires in a neural network. Taped wires carry no signal: they are the zeros in the mask. Free wires pass information through. With the tape in the right places, output i can only see inputs one through i. The entire autoregressive structure in a single forward pass.',
+      subtitleCues: [
+        { time: 0.0, text: 'MADE: Masked Autoencoder for Distribution Estimation' },
+        { time: 0.12, text: 'Tape over wires of the network' },
+        { time: 0.25, text: 'Taped wires = blocked (mask = 0)' },
+        { time: 0.38, text: 'Free wires = allowed (mask = 1)' },
+        { time: 0.5, text: 'W_effective = W element-wise × Mask M' },
+        { time: 0.62, text: 'Result: output i depends only on inputs 1..i' },
+        { time: 0.75, text: 'Autoregressive structure in 1 forward pass' },
+        { time: 0.88, text: 'Foundation of both MAF and IAF' },
+      ],
+      topic: 'MADE: Binary mask M on weights W. W_eff = W ⊙ M. Blocked (gray) vs allowed (colored) cells. Enforces autoregressive structure.',
+      title: 'MADE: efficiency with masks',
+      fullNet: 'Full network',
+      maskedNet: 'Masked network',
+      onePass: 'One pass → all parameters',
+      weightMatrix: 'Weights W',
+      maskMatrix: 'Mask M',
+      effectiveMatrix: 'W_eff = W ⊙ M',
+      allowed: 'Allowed (1)',
+      blocked: 'Blocked (0)',
+    },
+    scene6: {
+      id: 'Speed demo',
+      narration: 'Imagine a race to generate an MNIST image of 784 pixels. MAF is like a medieval scribe drawing each pixel one by one: 784 sequential steps. IAF is like a laser printer: one pass and done. Google used distillation to get the best of both: train a MAF teacher and distill it into an IAF student. That is how Parallel WaveNet was born.',
+      subtitleCues: [
+        { time: 0.0, text: 'Race: generate MNIST (784 pixels)' },
+        { time: 0.12, text: 'MAF = medieval scribe: pixel by pixel' },
+        { time: 0.25, text: 'MAF: 784 sequential steps...' },
+        { time: 0.38, text: 'IAF = laser printer: one pass' },
+        { time: 0.5, text: 'IAF: 1 pass → done!' },
+        { time: 0.62, text: 'Solution: distillation (teacher-student)' },
+        { time: 0.75, text: 'MAF teacher (good density) → IAF student (fast)' },
+        { time: 0.88, text: 'Parallel WaveNet: real-time audio' },
+      ],
+      topic: 'Sampling race: MAF 784 steps vs IAF 1 pass. Google distillation: MAF teacher → IAF student (Parallel WaveNet).',
+      title: 'Speed demo',
+      densityLabel: 'Density',
+      samplingLabel: 'Sampling',
+      mafLabel: 'MAF',
+      iafLabel: 'IAF',
+      passes1: '1 pass',
+      passesD: 'D passes',
+      raceTitle: 'Generate MNIST image (D=784)',
+      mafSteps: 'MAF: step',
+      iafDone: 'IAF: done',
+      distillation: 'Parallel WaveNet: MAF teacher → IAF student',
+    },
+    scene7: {
+      id: 'Module summary',
+      narration: 'Full module summary: normalizing flows are mathematical rubber sheets that transform simple Gaussians into complex distributions. The secret is designing tractable Jacobians. Coupling layers and autoregressive structures are the two paradigms. And MAF and IAF embody the fundamental trade-off: the fast critic versus the fast writer.',
+      subtitleCues: [
+        { time: 0.0, text: 'Normalizing Flows: module summary' },
+        { time: 0.12, text: 'Mathematical rubber sheets' },
+        { time: 0.25, text: 'Simple Gaussian → complex distribution' },
+        { time: 0.38, text: 'Secret: tractable Jacobians (triangular)' },
+        { time: 0.5, text: 'Paradigm 1: Coupling (NICE, RealNVP)' },
+        { time: 0.62, text: 'Paradigm 2: Autoregressive (MAF, IAF)' },
+        { time: 0.75, text: 'MAF (fast critic) vs IAF (fast writer)' },
+        { time: 0.88, text: 'Connection: IAF as perfect VAE decoder' },
+      ],
+      topic: 'Normalizing Flows module summary. Change of variables, Jacobian, determinant. Architectures: coupling (NICE, RealNVP) and autoregressive (MAF, IAF). Connections with VAEs (IAF decoder) and future GANs.',
+      title: 'Summary: Normalizing Flows',
+      center: 'Normalizing Flows',
+      branch1: 'Change of variables',
+      branch2: 'Architectures',
+      branch3: 'MAF vs IAF',
+      detail1: 'p(x) = p(z)|det J|⁻¹',
+      detail2: 'Coupling · Autoregressive',
+      detail3: 'Density ↔ Sampling',
+      connection: 'Connection: IAF as VAE decoder',
+    },
+  },
+};
+
+// ── Questions (bilingual) ──
+
+export const questions: Record<Lang, {
+  afterTradeoff: import('../../engine/types').QuestionData;
+  afterSpeedDemo: import('../../engine/types').QuestionData;
+}> = {
+  es: {
+    afterTradeoff: {
+      question: 'Quieres entrenar un modelo generativo por MLE sobre imágenes. ¿Qué arquitectura autoregresiva elegirías?',
+      choices: [
+        'IAF, porque genera muestras rápido',
+        'MAF, porque evalúa densidades rápido (necesario para MLE)',
+        'Da igual, ambos son iguales para MLE',
+      ],
+      correctIndex: 1,
+      hint: 'MLE requiere evaluar log p(x) para cada dato de entrenamiento. ¿Qué modelo lo hace en una pasada?',
+      explanation: 'MAF evalúa la densidad en O(1) pasadas (paralelo), exactamente lo que MLE necesita. IAF es lento para densidad (O(D) pasos), pero rápido para generar muestras.',
+    },
+    afterSpeedDemo: {
+      question: '¿Cómo logra Parallel WaveNet combinar lo mejor de MAF e IAF?',
+      choices: [
+        'Usa MAF e IAF alternados en la misma red',
+        'Entrena un maestro MAF (buena densidad) y destila a un estudiante IAF (muestreo rápido)',
+        'Ejecuta MAF e IAF en paralelo en dos GPUs',
+        'Convierte MAF en IAF cambiando la dirección de las máscaras',
+      ],
+      correctIndex: 1,
+      hint: 'La destilación transfiere conocimiento de un modelo lento pero preciso a uno rápido.',
+      explanation: 'Parallel WaveNet entrena un MAF teacher con MLE (densidad rápida). Luego usa destilación por KL para transferir ese conocimiento a un IAF student que genera audio en tiempo real.',
+    },
+  },
+  en: {
+    afterTradeoff: {
+      question: 'You want to train a generative model via MLE on images. Which autoregressive architecture would you choose?',
+      choices: [
+        'IAF, because it generates samples quickly',
+        'MAF, because it evaluates densities quickly (needed for MLE)',
+        'It does not matter, both are equal for MLE',
+      ],
+      correctIndex: 1,
+      hint: 'MLE requires evaluating log p(x) for each training data point. Which model does this in one pass?',
+      explanation: 'MAF evaluates density in O(1) passes (parallel), exactly what MLE needs. IAF is slow for density (O(D) steps) but fast for generating samples.',
+    },
+    afterSpeedDemo: {
+      question: 'How does Parallel WaveNet combine the best of MAF and IAF?',
+      choices: [
+        'It alternates MAF and IAF layers in the same network',
+        'It trains a MAF teacher (good density) and distills into an IAF student (fast sampling)',
+        'It runs MAF and IAF in parallel on two GPUs',
+        'It converts MAF to IAF by flipping the mask direction',
+      ],
+      correctIndex: 1,
+      hint: 'Distillation transfers knowledge from a slow but accurate model to a fast one.',
+      explanation: 'Parallel WaveNet trains a MAF teacher with MLE (fast density). Then it uses KL distillation to transfer that knowledge to an IAF student that generates audio in real time.',
+    },
+  },
+};
+
+export function tx(scene: string, field: string, ...args: (string | number)[]): string {
+  const lang = getLang();
+  const sceneObj = text[lang]?.[scene];
+  const fallbackObj = text.es[scene];
+  const raw = (typeof sceneObj === 'object' && sceneObj !== null ? (sceneObj as Record<string, unknown>)[field] : undefined)
+           ?? (typeof fallbackObj === 'object' && fallbackObj !== null ? (fallbackObj as Record<string, unknown>)[field] : undefined)
+           ?? '';
+  let str = String(raw);
+  args.forEach((arg, i) => {
+    str = str.replace(`$${i + 1}`, String(arg));
+  });
+  return str;
+}

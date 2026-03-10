@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tensores — Tutorial Interactivo</title>
+<link rel="stylesheet" href="./shared/theme.css">
+<style>
+  /* File-specific overrides and additions */
+  body {
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding-right: 260px;
+  }
+  .main-content { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; }
+  .subtitle { font-family: 'Courier New', monospace; }
+
+  /* ── Secciones ── */
+  .section {
+    background: #1e293b; border-radius: 16px; padding: 20px;
+    margin-bottom: 24px; border: 2px solid #334155;
+  }
+  .section h2 {
+    font-size: 1.15rem; color: #818cf8; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 1px solid #334155;
+  }
+  .section h3 { font-size: 0.95rem; color: #94a3b8; margin: 12px 0 6px; }
+
+  /* ── Canvas wrappers ── */
+  .canvas-wrap {
+    background: #0f172a; border-radius: 10px; padding: 12px;
+    margin: 10px 0; position: relative;
+  }
+  .canvas-wrap canvas { border-radius: 6px; }
+
+  /* ── Info badges ── */
+  .info-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+  .badge {
+    font-family: 'Courier New', monospace; background: #0f172a;
+    padding: 4px 12px; border-radius: 6px; font-size: 0.85rem;
+    color: #c4b5fd; border: 1px solid #334155;
+  }
+  .badge span { color: #818cf8; font-weight: 700; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+    padding: 12px 16px; font-family: 'Courier New', monospace;
+    font-size: 0.82rem; line-height: 1.6; margin: 10px 0;
+    overflow-x: auto; white-space: pre;
+  }
+  .kw { color: #818cf8; }
+  .str { color: #34d399; }
+  .num { color: #f59e0b; }
+  .cmt { color: #64748b; font-style: italic; }
+  .fn { color: #38bdf8; }
+
+  /* ── Ops grid ── */
+  .ops-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 10px 0; }
+  .op-card {
+    background: #0f172a; border-radius: 10px; padding: 12px;
+    border: 1px solid #334155;
+  }
+  .op-card h4 { font-size: 0.85rem; color: #818cf8; margin-bottom: 8px; text-align: center; }
+  .op-card canvas { border-radius: 4px; }
+
+  /* ── Reshape tabs ── */
+  .reshape-tabs { display: flex; gap: 8px; margin: 8px 0; justify-content: center; }
+  .reshape-tab {
+    padding: 6px 14px; border: 1px solid #334155; border-radius: 8px;
+    font-size: 0.82rem; font-family: 'Courier New', monospace; color: #94a3b8;
+    cursor: pointer; background: #0f172a; transition: all 0.15s;
+  }
+  .reshape-tab.active {
+    background: #818cf8; color: #0f172a; border-color: #818cf8; font-weight: 700;
+  }
+  .reshape-tab:hover:not(.active) { border-color: #818cf8; color: #c4b5fd; }
+
+  /* ── Insight box ── */
+  .insight {
+    background: #1e293b; border-radius: 16px; padding: 20px;
+    border: 2px solid #334155; margin: 10px 0;
+  }
+  .insight h3 { font-size: 1rem; color: #34d399; margin-bottom: 10px; }
+  .insight p { font-size: 0.88rem; color: #94a3b8; line-height: 1.55; margin-bottom: 8px; }
+  .insight p:last-child { margin-bottom: 0; }
+  .insight code { font-family: 'Courier New', monospace; color: #c4b5fd; font-size: 0.85rem; }
+  .insight ul { margin: 8px 0 8px 20px; font-size: 0.88rem; color: #94a3b8; line-height: 1.7; }
+  .insight li code { color: #c4b5fd; }
+
+  /* ── Sidebar controls ── */
+  .controls {
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+    width: 240px; background: #1e293b; border: 2px solid #334155;
+    border-right: none; border-radius: 16px 0 0 16px;
+    padding: 18px 14px; display: flex; flex-direction: column; gap: 14px;
+    z-index: 100; max-height: 90vh; overflow-y: auto;
+  }
+  .controls-title {
+    font-size: 0.85rem; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.05em; text-align: center;
+  }
+  .control-col { display: flex; flex-direction: column; gap: 6px; }
+  .control-col-label { font-weight: 700; font-size: 0.78rem; color: #818cf8; margin-bottom: 2px; }
+  .control-group { display: flex; align-items: center; gap: 6px; }
+  .control-group label {
+    font-size: 0.82rem; font-weight: 600; min-width: 50px;
+    color: #94a3b8; font-family: 'Courier New', monospace;
+  }
+  .control-group input[type="range"] { width: 80px; accent-color: #818cf8; flex: 1; }
+  .control-group .value {
+    font-family: 'Courier New', monospace; background: #0f172a;
+    padding: 2px 6px; border-radius: 4px; min-width: 28px;
+    text-align: center; font-size: 0.82rem; color: #c4b5fd;
+  }
+  .controls-divider { height: 1px; background: #334155; margin: 2px 0; }
+  .btn {
+    padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.82rem;
+    font-weight: 700; cursor: pointer; transition: all 0.15s;
+    background: #818cf8; color: #0f172a; width: 100%;
+  }
+  .btn:hover { background: #a5b4fc; }
+  .btn:active { transform: scale(0.97); }
+
+  /* ── Broadcasting visual ── */
+  .broadcast-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 16px; flex-wrap: wrap; margin: 10px 0;
+  }
+  .broadcast-label {
+    font-family: 'Courier New', monospace; font-size: 1.2rem;
+    color: #818cf8; font-weight: 700;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    body { padding-right: 24px; }
+    .controls {
+      position: fixed; top: auto; bottom: 0; right: 0; left: 0;
+      width: 100%; transform: none; border-radius: 16px 16px 0 0;
+      border: 2px solid #334155; border-bottom: none;
+      flex-direction: row; flex-wrap: wrap; justify-content: center;
+      padding: 14px 16px; gap: 10px 20px; max-height: 40vh;
+    }
+    .controls-title { display: none; }
+    .main-content { padding-bottom: 180px; }
+    .ops-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     SIDEBAR CONTROLS
+     ═══════════════════════════════════════════ -->
+<div class="controls">
+  <div class="controls-title">Controles</div>
+
+  <div class="control-col">
+    <div class="control-col-label">S1: Rango del tensor</div>
+    <div class="control-group">
+      <label>rango</label>
+      <input type="range" id="sl-rank" min="0" max="3" step="1" value="0">
+      <span class="value" id="v-rank">0</span>
+    </div>
+  </div>
+
+  <div class="controls-divider"></div>
+
+  <div class="control-col">
+    <div class="control-col-label">S2: Shape</div>
+    <div class="control-group">
+      <label>filas</label>
+      <input type="range" id="sl-rows" min="1" max="6" step="1" value="3">
+      <span class="value" id="v-rows">3</span>
+    </div>
+    <div class="control-group">
+      <label>cols</label>
+      <input type="range" id="sl-cols" min="1" max="6" step="1" value="4">
+      <span class="value" id="v-cols">4</span>
+    </div>
+  </div>
+
+  <div class="controls-divider"></div>
+
+  <div class="control-col">
+    <div class="control-col-label">S3: Escalar</div>
+    <div class="control-group">
+      <label>k</label>
+      <input type="range" id="sl-scalar" min="-3" max="3" step="0.1" value="2.0">
+      <span class="value" id="v-scalar">2.0</span>
+    </div>
+  </div>
+
+  <div class="controls-divider"></div>
+
+  <button class="btn" id="btn-regen">Regenerar valores</button>
+</div>
+
+<div class="main-content">
+
+  <h1>Tensores: Tutorial Interactivo</h1>
+  <p class="subtitle">La estructura de datos fundamental de PyTorch y Deep Learning</p>
+
+  <!-- ═══════════════════════════════════════════
+       SECCION 1: ¿Qué es un tensor?
+       ═══════════════════════════════════════════ -->
+  <div class="section" id="sec1">
+    <h2>1. ¿Qué es un tensor?</h2>
+    <p style="font-size:0.88rem; color:#94a3b8; margin-bottom:10px;">
+      Un tensor es una generalización de escalares, vectores y matrices a dimensiones arbitrarias.
+      Usa el slider de <strong style="color:#818cf8">rango</strong> para ver la progresión.
+    </p>
+
+    <div class="canvas-wrap">
+      <canvas id="c-rank" height="320"></canvas>
+    </div>
+
+    <div class="info-row" id="rank-info">
+      <div class="badge">shape: <span id="rank-shape">()</span></div>
+      <div class="badge">ndim: <span id="rank-ndim">0</span></div>
+      <div class="badge">numel: <span id="rank-numel">1</span></div>
+    </div>
+
+    <div class="code-block" id="rank-code"><span class="cmt"># Escalar (rango 0)</span>
+<span class="kw">import</span> torch
+x = torch.<span class="fn">tensor</span>(<span class="num">3.14</span>)
+<span class="fn">print</span>(x.shape)  <span class="cmt"># torch.Size([])</span></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCION 2: Shapes y dimensiones
+       ═══════════════════════════════════════════ -->
+  <div class="section" id="sec2">
+    <h2>2. Shapes y dimensiones</h2>
+    <p style="font-size:0.88rem; color:#94a3b8; margin-bottom:10px;">
+      La <strong style="color:#818cf8">shape</strong> describe el tamaño de cada dimensión.
+      Ajusta filas y columnas en el panel de controles.
+    </p>
+
+    <div class="canvas-wrap">
+      <canvas id="c-shape" height="300"></canvas>
+    </div>
+
+    <div class="info-row" id="shape-info">
+      <div class="badge">shape: <span id="shape-val">(3, 4)</span></div>
+      <div class="badge">numel: <span id="shape-numel">12</span></div>
+    </div>
+
+    <div class="code-block" id="shape-code">x = torch.<span class="fn">randn</span>(<span class="num">3</span>, <span class="num">4</span>)  <span class="cmt"># matriz 3×4 con valores aleatorios</span>
+<span class="fn">print</span>(x.shape)   <span class="cmt"># torch.Size([3, 4])</span>
+<span class="fn">print</span>(x.<span class="fn">numel</span>()) <span class="cmt"># 12</span></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCION 3: Operaciones básicas
+       ═══════════════════════════════════════════ -->
+  <div class="section" id="sec3">
+    <h2>3. Operaciones básicas</h2>
+
+    <div class="ops-grid">
+      <!-- Suma -->
+      <div class="op-card">
+        <h4>Suma elemento a elemento</h4>
+        <canvas id="c-add" height="260"></canvas>
+        <div class="code-block" style="font-size:0.75rem; margin-top:8px">C = A + B</div>
+      </div>
+      <!-- Escalar -->
+      <div class="op-card">
+        <h4>Producto por escalar</h4>
+        <canvas id="c-scmul" height="260"></canvas>
+        <div class="code-block" style="font-size:0.75rem; margin-top:8px">B = k * A</div>
+      </div>
+      <!-- Reshape -->
+      <div class="op-card">
+        <h4>Reshape</h4>
+        <canvas id="c-reshape" height="260"></canvas>
+        <div class="reshape-tabs" id="reshape-tabs">
+          <div class="reshape-tab active" data-shape="2,6">(2,6)</div>
+          <div class="reshape-tab" data-shape="3,4">(3,4)</div>
+          <div class="reshape-tab" data-shape="6,2">(6,2)</div>
+          <div class="reshape-tab" data-shape="12,1">(12,1)</div>
+        </div>
+        <div class="code-block" style="font-size:0.75rem; margin-top:4px" id="reshape-code">x.<span class="fn">view</span>(<span class="num">2</span>, <span class="num">6</span>)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCION 4: Broadcasting
+       ═══════════════════════════════════════════ -->
+  <div class="section" id="sec4">
+    <h2>4. Broadcasting</h2>
+    <p style="font-size:0.88rem; color:#94a3b8; margin-bottom:10px;">
+      Cuando las shapes no coinciden, PyTorch <strong style="color:#818cf8">expande</strong>
+      automáticamente las dimensiones menores para que la operación funcione.
+    </p>
+
+    <div class="canvas-wrap">
+      <canvas id="c-broadcast" height="320"></canvas>
+    </div>
+
+    <div class="broadcast-row">
+      <div class="badge">A: <span>(3, 4)</span></div>
+      <div class="broadcast-label">+</div>
+      <div class="badge">b: <span>(4,)</span></div>
+      <div class="broadcast-label">=</div>
+      <div class="badge">C: <span>(3, 4)</span></div>
+    </div>
+
+    <div class="code-block">A = torch.<span class="fn">randn</span>(<span class="num">3</span>, <span class="num">4</span>)
+b = torch.<span class="fn">tensor</span>([<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>, <span class="num">4.0</span>])
+C = A + b  <span class="cmt"># b se replica en cada fila automáticamente</span>
+<span class="fn">print</span>(C.shape)  <span class="cmt"># torch.Size([3, 4])</span></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCION 5: Tensores en XCS236
+       ═══════════════════════════════════════════ -->
+  <div class="section" id="sec5">
+    <h2>5. Tensores en XCS236</h2>
+
+    <div class="insight">
+      <h3>Ejemplos concretos del curso</h3>
+      <ul>
+        <li><code>(1, 28, 28)</code> — Imagen MNIST: 1 canal, 28x28 píxeles</li>
+        <li><code>(batch, C, H, W)</code> — Batch de imágenes (ej: 64 imágenes RGB de 32x32)</li>
+        <li><code>(out_features, in_features)</code> — Pesos de una capa <code>nn.Linear</code></li>
+        <li><code>(batch, latent_dim)</code> — Vector latente z en un VAE</li>
+        <li>La salida de un modelo generativo tiene la <strong style="color:#818cf8">misma shape</strong> que los datos de entrada</li>
+      </ul>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="c-mnist" height="280"></canvas>
+    </div>
+
+    <div class="code-block"><span class="cmt"># Batch de 64 imágenes MNIST</span>
+x = torch.<span class="fn">randn</span>(<span class="num">64</span>, <span class="num">1</span>, <span class="num">28</span>, <span class="num">28</span>)
+<span class="fn">print</span>(x.shape)    <span class="cmt"># torch.Size([64, 1, 28, 28])</span>
+<span class="fn">print</span>(x.ndim)     <span class="cmt"># 4</span>
+<span class="fn">print</span>(x.<span class="fn">numel</span>())  <span class="cmt"># 50176</span>
+
+<span class="cmt"># Flatten para pasar a capa linear</span>
+x_flat = x.<span class="fn">view</span>(<span class="num">64</span>, <span class="num">784</span>)
+<span class="fn">print</span>(x_flat.shape)  <span class="cmt"># torch.Size([64, 784])</span></div>
+
+    <div class="insight" style="margin-top:14px;">
+      <h3>Operaciones clave que verás en las tareas</h3>
+      <p>
+        <code>x.view(batch, -1)</code> — Aplanar todas las dimensiones espaciales (flatten).<br>
+        <code>x.permute(0, 2, 3, 1)</code> — Reordenar ejes, ej: (B,C,H,W) a (B,H,W,C).<br>
+        <code>x.unsqueeze(0)</code> — Añadir una dimensión de tamaño 1 (útil para broadcasting).<br>
+        <code>x.squeeze()</code> — Eliminar dimensiones de tamaño 1.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+<script type="module">
+import { setupCanvas } from './shared/canvas.js';
+
+// ═══════════════════════════════════════════════
+// Estado global
+// ═══════════════════════════════════════════════
+const S = {
+  rank: 0,
+  rows: 3,
+  cols: 4,
+  scalar: 2.0,
+  reshapeShape: [2, 6],
+  // Datos fijos para las visualizaciones
+  gridData: [],
+  matA: [],
+  matB: [],
+  vecB: [],
+  reshapeData: [],
+  broadcastA: [],
+  broadcastB: [],
+};
+
+function genRandMatrix(r, c) {
+  const m = [];
+  for (let i = 0; i < r; i++) {
+    m[i] = [];
+    for (let j = 0; j < c; j++) m[i][j] = +(Math.random() * 4 - 2).toFixed(1);
+  }
+  return m;
+}
+function genRandVec(n) {
+  const v = [];
+  for (let i = 0; i < n; i++) v[i] = +(Math.random() * 4 - 2).toFixed(1);
+  return v;
+}
+
+function regenerateData() {
+  S.gridData = genRandMatrix(6, 6);
+  S.matA = genRandMatrix(3, 3);
+  S.matB = genRandMatrix(3, 3);
+  S.reshapeData = [];
+  for (let i = 0; i < 12; i++) S.reshapeData[i] = +(Math.random() * 4 - 2).toFixed(1);
+  S.broadcastA = genRandMatrix(3, 4);
+  S.broadcastB = genRandVec(4);
+}
+regenerateData();
+
+function wireSlider(sliderId, valueId, stateKey, fmt, intParse) {
+  const sl = document.getElementById(sliderId);
+  const vl = document.getElementById(valueId);
+  sl.addEventListener('input', () => {
+    S[stateKey] = intParse ? parseInt(sl.value) : parseFloat(sl.value);
+    vl.textContent = fmt(S[stateKey]);
+    drawAll();
+  });
+}
+
+// Color heatmap: valor -> color
+function valColor(v, alpha) {
+  // v in roughly [-3, 3] -> blue to red through white
+  const t = Math.max(0, Math.min(1, (v + 3) / 6));
+  const r = Math.round(t < 0.5 ? 30 + t * 2 * 180 : 210 + (t - 0.5) * 2 * 45);
+  const g = Math.round(t < 0.5 ? 30 + t * 2 * 140 : 170 - (t - 0.5) * 2 * 140);
+  const b = Math.round(t < 0.5 ? 180 - t * 2 * 80 : 100 - (t - 0.5) * 2 * 70);
+  return `rgba(${r},${g},${b},${alpha || 0.7})`;
+}
+
+function drawCell(ctx, x, y, w, h, val, showVal) {
+  ctx.fillStyle = valColor(val, 0.55);
+  ctx.beginPath();
+  const r = 4;
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(148,163,184,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  if (showVal !== false) {
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = `${Math.min(14, h * 0.4)}px 'Courier New', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(val.toFixed(1), x + w / 2, y + h / 2);
+  }
+}
+
+function drawGrid(ctx, mat, ox, oy, cellW, cellH, showVals) {
+  for (let i = 0; i < mat.length; i++) {
+    for (let j = 0; j < mat[i].length; j++) {
+      drawCell(ctx, ox + j * cellW, oy + i * cellH, cellW - 2, cellH - 2, mat[i][j], showVals);
+    }
+  }
+}
+
+function drawLabel(ctx, text, x, y, color, size) {
+  ctx.fillStyle = color || '#94a3b8';
+  ctx.font = `${size || 13}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+
+// ═══════════════════════════════════════════════
+// Sección 1: Rango del tensor
+// ═══════════════════════════════════════════════
+function drawRank() {
+  const canvas = document.getElementById('c-rank');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const rank = S.rank;
+  const names = ['Escalar (rango 0)', 'Vector (rango 1)', 'Matriz (rango 2)', 'Tensor 3D (rango 3)'];
+  const shapes = ['()', '(4,)', '(3, 4)', '(2, 3, 4)'];
+  const ndims = [0, 1, 2, 3];
+  const numels = [1, 4, 12, 24];
+
+  // Title
+  drawLabel(ctx, names[rank], w / 2, 24, '#818cf8', 16);
+
+  const cx = w / 2;
+  const cy = h / 2 + 10;
+  const cell = 42;
+
+  if (rank === 0) {
+    // Escalar: un solo punto/celda
+    drawCell(ctx, cx - cell / 2, cy - cell / 2, cell, cell, S.gridData[0][0]);
+  }
+  else if (rank === 1) {
+    // Vector: fila de 4
+    const total = 4 * cell;
+    const sx = cx - total / 2;
+    for (let j = 0; j < 4; j++) {
+      drawCell(ctx, sx + j * cell, cy - cell / 2, cell - 2, cell - 2, S.gridData[0][j]);
+    }
+    // Index labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Courier New, monospace';
+    ctx.textAlign = 'center';
+    for (let j = 0; j < 4; j++) {
+      ctx.fillText(`[${j}]`, sx + j * cell + cell / 2 - 1, cy + cell / 2 + 16);
+    }
+  }
+  else if (rank === 2) {
+    // Matriz 3×4
+    const rows = 3, cols = 4;
+    const tw = cols * cell, th = rows * cell;
+    const sx = cx - tw / 2, sy = cy - th / 2;
+    const mat = [];
+    for (let i = 0; i < rows; i++) {
+      mat[i] = [];
+      for (let j = 0; j < cols; j++) mat[i][j] = S.gridData[i][j];
+    }
+    drawGrid(ctx, mat, sx, sy, cell, cell, true);
+    // Axis labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Courier New, monospace';
+    ctx.textAlign = 'center';
+    for (let j = 0; j < cols; j++) ctx.fillText(`col ${j}`, sx + j * cell + cell / 2 - 1, sy - 10);
+    ctx.textAlign = 'right';
+    for (let i = 0; i < rows; i++) ctx.fillText(`fila ${i}`, sx - 8, sy + i * cell + cell / 2);
+  }
+  else if (rank === 3) {
+    // Tensor 3D: 2 capas apiladas con offset isométrico
+    const layers = 2, rows = 3, cols = 4;
+    const cw = 38, ch = 32;
+    const offX = 20, offY = -18;
+    const tw = cols * cw, th = rows * ch;
+    const baseX = cx - tw / 2 - offX / 2;
+    const baseY = cy - th / 2 + 20;
+
+    for (let l = layers - 1; l >= 0; l--) {
+      const lx = baseX + l * offX;
+      const ly = baseY + l * offY;
+
+      // Background for layer
+      ctx.fillStyle = `rgba(30,41,59,${l === 0 ? 0.9 : 0.5})`;
+      ctx.fillRect(lx - 2, ly - 2, tw + 4, th + 4);
+      ctx.strokeStyle = `rgba(129,140,248,${l === 0 ? 0.5 : 0.25})`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lx - 2, ly - 2, tw + 4, th + 4);
+
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          const v = S.gridData[l * rows + i] ? S.gridData[l * rows + i][j] : S.gridData[i][j];
+          drawCell(ctx, lx + j * cw, ly + i * ch, cw - 2, ch - 2, v, l === 0);
+        }
+      }
+      // Layer label
+      drawLabel(ctx, `capa ${l}`, lx + tw / 2, ly - 14, '#818cf8', 11);
+    }
+  }
+
+  // Update info badges
+  document.getElementById('rank-shape').textContent = shapes[rank];
+  document.getElementById('rank-ndim').textContent = ndims[rank];
+  document.getElementById('rank-numel').textContent = numels[rank];
+
+  // Update code block
+  const codes = [
+    `<span class="cmt"># Escalar (rango 0)</span>\n<span class="kw">import</span> torch\nx = torch.<span class="fn">tensor</span>(<span class="num">3.14</span>)\n<span class="fn">print</span>(x.shape)  <span class="cmt"># torch.Size([])</span>`,
+    `<span class="cmt"># Vector (rango 1)</span>\nx = torch.<span class="fn">tensor</span>([<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>, <span class="num">4.0</span>])\n<span class="fn">print</span>(x.shape)  <span class="cmt"># torch.Size([4])</span>`,
+    `<span class="cmt"># Matriz (rango 2)</span>\nx = torch.<span class="fn">randn</span>(<span class="num">3</span>, <span class="num">4</span>)\n<span class="fn">print</span>(x.shape)  <span class="cmt"># torch.Size([3, 4])</span>`,
+    `<span class="cmt"># Tensor 3D (rango 3)</span>\nx = torch.<span class="fn">randn</span>(<span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>)\n<span class="fn">print</span>(x.shape)  <span class="cmt"># torch.Size([2, 3, 4])</span>`
+  ];
+  document.getElementById('rank-code').innerHTML = codes[rank];
+}
+
+// ═══════════════════════════════════════════════
+// Sección 2: Shapes y dimensiones
+// ═══════════════════════════════════════════════
+function drawShape() {
+  const canvas = document.getElementById('c-shape');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const rows = S.rows, cols = S.cols;
+  const maxCell = 48;
+  const cellW = Math.min(maxCell, (w - 80) / cols);
+  const cellH = Math.min(maxCell, (h - 60) / rows);
+  const tw = cols * cellW, th = rows * cellH;
+  const sx = (w - tw) / 2, sy = (h - th) / 2 + 10;
+
+  // Axis labels
+  ctx.fillStyle = '#818cf8';
+  ctx.font = '12px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`dim 1 (columnas: ${cols})`, sx + tw / 2, sy - 18);
+  ctx.save();
+  ctx.translate(sx - 20, sy + th / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(`dim 0 (filas: ${rows})`, 0, 0);
+  ctx.restore();
+
+  // Grid
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const val = S.gridData[i] && S.gridData[i][j] !== undefined ? S.gridData[i][j] : 0;
+      drawCell(ctx, sx + j * cellW, sy + i * cellH, cellW - 2, cellH - 2, val);
+    }
+  }
+
+  // Index labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px Courier New, monospace';
+  ctx.textAlign = 'center';
+  for (let j = 0; j < cols; j++) ctx.fillText(j, sx + j * cellW + cellW / 2 - 1, sy + th + 14);
+  ctx.textAlign = 'right';
+  for (let i = 0; i < rows; i++) ctx.fillText(i, sx - 6, sy + i * cellH + cellH / 2 + 3);
+
+  // Update info
+  document.getElementById('shape-val').textContent = `(${rows}, ${cols})`;
+  document.getElementById('shape-numel').textContent = rows * cols;
+
+  // Update code
+  document.getElementById('shape-code').innerHTML =
+    `x = torch.<span class="fn">randn</span>(<span class="num">${rows}</span>, <span class="num">${cols}</span>)  <span class="cmt"># matriz ${rows}×${cols} con valores aleatorios</span>\n` +
+    `<span class="fn">print</span>(x.shape)   <span class="cmt"># torch.Size([${rows}, ${cols}])</span>\n` +
+    `<span class="fn">print</span>(x.<span class="fn">numel</span>()) <span class="cmt"># ${rows * cols}</span>`;
+}
+
+// ═══════════════════════════════════════════════
+// Sección 3: Operaciones
+// ═══════════════════════════════════════════════
+function drawAdd() {
+  const canvas = document.getElementById('c-add');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const rows = 3, cols = 3, cell = Math.min(28, (w - 20) / cols);
+  const gw = cols * cell;
+
+  // A
+  const ay = 10;
+  drawLabel(ctx, 'A', w / 2, ay + 2, '#94a3b8', 11);
+  const asx = (w - gw) / 2;
+  drawGrid(ctx, S.matA, asx, ay + 12, cell, cell, true);
+
+  // +
+  drawLabel(ctx, '+', w / 2, ay + 12 + rows * cell + 12, '#818cf8', 16);
+
+  // B
+  const by = ay + 12 + rows * cell + 24;
+  drawLabel(ctx, 'B', w / 2, by + 2, '#94a3b8', 11);
+  drawGrid(ctx, S.matB, asx, by + 12, cell, cell, true);
+
+  // =
+  const ey = by + 12 + rows * cell + 12;
+  drawLabel(ctx, '=', w / 2, ey, '#818cf8', 16);
+
+  // Result
+  const ry = ey + 12;
+  const matC = [];
+  for (let i = 0; i < rows; i++) {
+    matC[i] = [];
+    for (let j = 0; j < cols; j++) matC[i][j] = +(S.matA[i][j] + S.matB[i][j]).toFixed(1);
+  }
+  drawGrid(ctx, matC, asx, ry, cell, cell, true);
+}
+
+function drawScalarMul() {
+  const canvas = document.getElementById('c-scmul');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const rows = 3, cols = 3, cell = Math.min(28, (w - 20) / cols);
+  const gw = cols * cell;
+  const asx = (w - gw) / 2;
+  const k = S.scalar;
+
+  // k label
+  drawLabel(ctx, `k = ${k.toFixed(1)}`, w / 2, 14, '#f59e0b', 13);
+
+  // A
+  const ay = 28;
+  drawLabel(ctx, 'A', w / 2, ay + 2, '#94a3b8', 11);
+  drawGrid(ctx, S.matA, asx, ay + 12, cell, cell, true);
+
+  // ×
+  const my = ay + 12 + rows * cell + 12;
+  drawLabel(ctx, `× ${k.toFixed(1)}`, w / 2, my, '#f59e0b', 14);
+
+  // =
+  const ey = my + 16;
+  drawLabel(ctx, '=', w / 2, ey, '#818cf8', 16);
+
+  // Result
+  const ry = ey + 12;
+  const matR = [];
+  for (let i = 0; i < rows; i++) {
+    matR[i] = [];
+    for (let j = 0; j < cols; j++) matR[i][j] = +(S.matA[i][j] * k).toFixed(1);
+  }
+  drawGrid(ctx, matR, asx, ry, cell, cell, true);
+}
+
+function drawReshape() {
+  const canvas = document.getElementById('c-reshape');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const [rows, cols] = S.reshapeShape;
+  const cell = Math.min(32, Math.min((w - 20) / cols, (h - 50) / rows));
+  const gw = cols * cell, gh = rows * cell;
+  const sx = (w - gw) / 2, sy = (h - gh) / 2;
+
+  drawLabel(ctx, `shape: (${rows}, ${cols})`, w / 2, 14, '#818cf8', 12);
+
+  // Draw with color-coded cells based on flat index
+  const colors = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899',
+                  '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#e11d48'];
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const idx = i * cols + j;
+      const val = S.reshapeData[idx];
+      // Cell bg with index color
+      const cx = sx + j * cell, cy = sy + i * cell;
+
+      ctx.fillStyle = colors[idx % 12] + '55';
+      ctx.beginPath();
+      const r = 3;
+      ctx.moveTo(cx + r, cy);
+      ctx.arcTo(cx + cell - 2, cy, cx + cell - 2, cy + cell - 2, r);
+      ctx.arcTo(cx + cell - 2, cy + cell - 2, cx, cy + cell - 2, r);
+      ctx.arcTo(cx, cy + cell - 2, cx, cy, r);
+      ctx.arcTo(cx, cy, cx + cell - 2, cy, r);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = colors[idx % 12] + '88';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = `${Math.min(12, cell * 0.35)}px Courier New, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(val.toFixed(1), cx + (cell - 2) / 2, cy + (cell - 2) / 2);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// Sección 4: Broadcasting
+// ═══════════════════════════════════════════════
+function drawBroadcast() {
+  const canvas = document.getElementById('c-broadcast');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const rows = 3, cols = 4;
+  const cell = Math.min(38, (w - 180) / (cols * 3 + 2));
+  const gw = cols * cell;
+  const gap = 24;
+
+  // Total width: A + gap + b(expanded) + gap + C
+  const totalW = gw + gap + gw + gap + gw;
+  const sx = (w - totalW) / 2;
+  const sy = 52;
+
+  // Labels
+  drawLabel(ctx, 'A (3,4)', sx + gw / 2, 18, '#818cf8', 13);
+  drawLabel(ctx, '+', sx + gw + gap / 2, sy + rows * cell / 2, '#818cf8', 18);
+  drawLabel(ctx, 'b expandido (3,4)', sx + gw + gap + gw / 2, 18, '#34d399', 13);
+  drawLabel(ctx, '=', sx + 2 * gw + gap + gap / 2, sy + rows * cell / 2, '#818cf8', 18);
+  drawLabel(ctx, 'C (3,4)', sx + 2 * (gw + gap) + gw / 2, 18, '#f59e0b', 13);
+
+  // Original vector b (small)
+  drawLabel(ctx, 'b original (4,):', sx + gw + gap + gw / 2, 36, '#64748b', 10);
+
+  // Draw A
+  drawGrid(ctx, S.broadcastA, sx, sy, cell, cell, true);
+
+  // Draw b expanded (same row repeated)
+  const bExpanded = [];
+  for (let i = 0; i < rows; i++) bExpanded[i] = [...S.broadcastB];
+  const bx = sx + gw + gap;
+
+  // Draw with highlight for broadcast
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const x = bx + j * cell, y = sy + i * cell;
+      // Dashed border to show it's "virtual"
+      ctx.fillStyle = valColor(S.broadcastB[j], 0.35);
+      ctx.fillRect(x, y, cell - 2, cell - 2);
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#34d39966';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cell - 2, cell - 2);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = `${Math.min(12, cell * 0.35)}px Courier New, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(S.broadcastB[j].toFixed(1), x + (cell - 2) / 2, y + (cell - 2) / 2);
+    }
+  }
+
+  // Arrow showing replication
+  if (rows > 1) {
+    ctx.strokeStyle = '#34d39966';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    for (let i = 1; i < rows; i++) {
+      const fromY = sy + cell / 2;
+      const toY = sy + i * cell + cell / 2;
+      ctx.beginPath();
+      ctx.moveTo(bx - 8, fromY);
+      ctx.quadraticCurveTo(bx - 14, (fromY + toY) / 2, bx - 8, toY);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // Draw C = A + broadcast(b)
+  const cx2 = sx + 2 * (gw + gap);
+  const matC = [];
+  for (let i = 0; i < rows; i++) {
+    matC[i] = [];
+    for (let j = 0; j < cols; j++) {
+      matC[i][j] = +(S.broadcastA[i][j] + S.broadcastB[j]).toFixed(1);
+    }
+  }
+  drawGrid(ctx, matC, cx2, sy, cell, cell, true);
+}
+
+// ═══════════════════════════════════════════════
+// Sección 5: MNIST visualization
+// ═══════════════════════════════════════════════
+function drawMnist() {
+  const canvas = document.getElementById('c-mnist');
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw a simplified tensor diagram for (64, 1, 28, 28)
+  const batchIcons = 5; // show 5 "images" from the batch
+  const imgSize = 56;
+  const gap = 16;
+  const totalW = batchIcons * imgSize + (batchIcons - 1) * gap;
+  const sx = (w - totalW) / 2;
+  const sy = 50;
+
+  drawLabel(ctx, 'Batch de imágenes: shape (64, 1, 28, 28)', w / 2, 20, '#818cf8', 14);
+  drawLabel(ctx, '← batch_size = 64 (mostrando 5) →', w / 2, 38, '#64748b', 11);
+
+  // Generate fake "MNIST" pixel patterns for each mini image
+  for (let b = 0; b < batchIcons; b++) {
+    const ix = sx + b * (imgSize + gap);
+    const iy = sy;
+
+    // Image background
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.fillRect(ix, iy, imgSize, imgSize);
+    ctx.strokeRect(ix, iy, imgSize, imgSize);
+
+    // Random "digit" pattern using small cells
+    const cellsPerSide = 7;
+    const px = imgSize / cellsPerSide;
+    for (let i = 0; i < cellsPerSide; i++) {
+      for (let j = 0; j < cellsPerSide; j++) {
+        // Create digit-like patterns
+        const ci = i - cellsPerSide / 2, cj = j - cellsPerSide / 2;
+        const dist = Math.sqrt(ci * ci + cj * cj);
+        const pattern = Math.sin(b * 2 + i * 0.8) * Math.cos(j * 0.9 + b);
+        const intensity = Math.max(0, Math.min(1, 0.3 + pattern * 0.5 + (dist < 2.5 ? 0.3 : 0)));
+        if (intensity > 0.35) {
+          ctx.fillStyle = `rgba(226,232,240,${intensity * 0.8})`;
+          ctx.fillRect(ix + j * px + 1, iy + i * px + 1, px - 2, px - 2);
+        }
+      }
+    }
+
+    // Index label
+    drawLabel(ctx, `[${b}]`, ix + imgSize / 2, iy + imgSize + 14, '#64748b', 10);
+  }
+
+  // Dotted line to indicate "...more"
+  drawLabel(ctx, '...', sx + totalW + 16, sy + imgSize / 2, '#64748b', 18);
+
+  // Annotations below
+  const ay = sy + imgSize + 32;
+  const annotations = [
+    { label: 'batch', val: '64', color: '#818cf8' },
+    { label: 'canales', val: '1', color: '#34d399' },
+    { label: 'alto', val: '28', color: '#f59e0b' },
+    { label: 'ancho', val: '28', color: '#f59e0b' },
+  ];
+  const aw = 90, atotal = annotations.length * aw;
+  const asx = (w - atotal) / 2;
+
+  for (let i = 0; i < annotations.length; i++) {
+    const ax = asx + i * aw + aw / 2;
+    ctx.fillStyle = annotations[i].color;
+    ctx.font = 'bold 13px Courier New, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(annotations[i].val, ax, ay);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px Segoe UI, sans-serif';
+    ctx.fillText(annotations[i].label, ax, ay + 16);
+  }
+
+  // Parentheses around shape
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px Courier New, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('(                                                      )', w / 2, ay);
+
+  // Arrow: flatten
+  const fy = ay + 36;
+  drawLabel(ctx, 'x.view(64, 784)', w / 2, fy, '#818cf8', 12);
+  ctx.strokeStyle = '#818cf855';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w / 2 - 60, fy + 8);
+  ctx.lineTo(w / 2, fy + 18);
+  ctx.lineTo(w / 2 + 60, fy + 8);
+  ctx.stroke();
+
+  drawLabel(ctx, '→ shape: (64, 784)', w / 2, fy + 30, '#34d399', 12);
+}
+
+// ═══════════════════════════════════════════════
+// Draw all
+// ═══════════════════════════════════════════════
+function drawAll() {
+  drawRank();
+  drawShape();
+  drawAdd();
+  drawScalarMul();
+  drawReshape();
+  drawBroadcast();
+  drawMnist();
+}
+
+// ═══════════════════════════════════════════════
+// Wiring
+// ═══════════════════════════════════════════════
+wireSlider('sl-rank', 'v-rank', 'rank', v => v, true);
+wireSlider('sl-rows', 'v-rows', 'rows', v => v, true);
+wireSlider('sl-cols', 'v-cols', 'cols', v => v, true);
+wireSlider('sl-scalar', 'v-scalar', 'scalar', v => v.toFixed(1), false);
+
+// Reshape tabs
+document.querySelectorAll('.reshape-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.reshape-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const [r, c] = tab.dataset.shape.split(',').map(Number);
+    S.reshapeShape = [r, c];
+    document.getElementById('reshape-code').innerHTML =
+      `x.<span class="fn">view</span>(<span class="num">${r}</span>, <span class="num">${c}</span>)`;
+    drawReshape();
+  });
+});
+
+// Regenerate button
+document.getElementById('btn-regen').addEventListener('click', () => {
+  regenerateData();
+  drawAll();
+});
+
+// ═══════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  drawAll();
+  window.addEventListener('resize', drawAll);
+});
+</script>
+</body>
+</html>

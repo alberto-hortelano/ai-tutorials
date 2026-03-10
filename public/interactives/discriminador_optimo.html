@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discriminador Optimo D* y Logits h*</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        .canvas-dist { height: 200px; }
+        .canvas-disc { height: 180px; }
+        .canvas-logits { height: 180px; }
+        .metric-jsd .metric-value { color: #a855f7; }
+        .metric-dstar .metric-value { color: #64ff96; }
+        .metric-hstar .metric-value { color: #ff9f43; }
+    </style>
+</head>
+<body>
+    <h1>Discriminador Optimo D* y Logits h*</h1>
+    <p class="subtitle">Ejercicio 3 &mdash; Que aprende el discriminador optimo de una GAN?</p>
+
+    <div class="formula">
+        D*(x) = p_data(x) / (p_data(x) + p_theta(x)) &nbsp;&nbsp;|&nbsp;&nbsp;
+        h*(x) = log(p_data(x) / p_theta(x))
+    </div>
+
+    <!-- Controles -->
+    <div class="controls">
+        <h3>Parametros de p_theta</h3>
+        <div class="control-group" id="sliderGroup"></div>
+        <div class="metrics-display" id="metricsDisplay"></div>
+    </div>
+
+    <!-- Panel 1: Distribuciones -->
+    <div class="section">
+        <h2>Distribuciones p_data y p_theta</h2>
+        <div class="graph-container">
+            <canvas id="canvasDist" class="canvas-dist"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4a9eff"></div>
+                    <span>p_data(x) = N(0, 1) fija</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ef4444"></div>
+                    <span>p_theta(x) = N(mu, sigma^2) movil</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 2: Discriminador optimo -->
+    <div class="section">
+        <h2>Discriminador optimo D*(x)</h2>
+        <div class="graph-container">
+            <canvas id="canvasDisc" class="canvas-disc"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #64ff96"></div>
+                    <span>D*(x) = p_data / (p_data + p_theta)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #888; height: 2px; border-top: 2px dashed #888;"></div>
+                    <span>D = 0.5 (equilibrio)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel 3: Logits optimos -->
+    <div class="section">
+        <h2>Logits optimos h*(x) = log(p_data / p_theta)</h2>
+        <div class="graph-container">
+            <canvas id="canvasLogits" class="canvas-logits"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff9f43"></div>
+                    <span>h*(x) = log-ratio de densidades</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #888; height: 2px; border-top: 2px dashed #888;"></div>
+                    <span>h = 0 (no puede distinguir)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insight -->
+    <div class="section" id="insightContainer"></div>
+
+    <script type="module">
+        import { setupCanvas, clearCanvas, drawGridV, drawAxes, drawXLabels, drawYLabels, drawHRef, drawCurve, drawGaussianCurve, createCoords } from './shared/canvas.js';
+        import { gaussian, jsDivergence } from './shared/math.js';
+        import { COLORS, CURVE, rgba } from './shared/colors.js';
+        import { createSlider, createInsightBox, createMetricCard } from './shared/ui.js';
+
+        // ======================== PARAMETROS ========================
+        let muTheta = 2.0;
+        let sigmaTheta = 1.0;
+        const muData = 0;
+        const sigmaData = 1.0;
+
+        // ======================== DERIVED FUNCTIONS ========================
+        const pData = x => gaussian(x, muData, sigmaData);
+        const pTheta = x => gaussian(x, muTheta, sigmaTheta);
+
+        function dStar(x) {
+            const pd = pData(x), pt = pTheta(x);
+            const sum = pd + pt;
+            return sum < 1e-300 ? 0.5 : pd / sum;
+        }
+
+        function hStar(x) {
+            const pd = pData(x), pt = pTheta(x);
+            if (pt < 1e-300 && pd < 1e-300) return 0;
+            if (pt < 1e-300) return 10;
+            if (pd < 1e-300) return -10;
+            return Math.max(-10, Math.min(10, Math.log(pd / pt)));
+        }
+
+        // ======================== UI SETUP ========================
+        const sliderGroup = document.getElementById('sliderGroup');
+        createSlider(sliderGroup, {
+            label: 'Media de p_theta: mu = $v', min: -4, max: 4, step: 0.05, value: 2,
+            onChange: v => { muTheta = v; updateAll(); }
+        });
+        createSlider(sliderGroup, {
+            label: 'Desviacion de p_theta: sigma = $v', min: 0.2, max: 3.0, step: 0.05, value: 1.0,
+            onChange: v => { sigmaTheta = v; updateAll(); }
+        });
+
+        const metricsEl = document.getElementById('metricsDisplay');
+        const jsdCard = createMetricCard(metricsEl, { name: 'JSD(p_data, p_theta)', color: '#a855f7' });
+        const dstarCard = createMetricCard(metricsEl, { name: 'D*(0) en la media de p_data', color: '#64ff96' });
+        const hstarCard = createMetricCard(metricsEl, { name: 'h*(0) logits en media p_data', color: '#ff9f43' });
+
+        const insight = createInsightBox(
+            document.getElementById('insightContainer'),
+            'Observacion',
+            'Mueve los sliders para explorar como cambian D* y h* cuando p_theta se acerca o aleja de p_data.'
+        );
+
+        // ======================== DRAW DISTRIBUTIONS ========================
+        function drawDistributions() {
+            const canvas = document.getElementById('canvasDist');
+            const { ctx, w, h } = setupCanvas(canvas);
+            clearCanvas(ctx, w, h);
+
+            const pad = { left: 50, right: 20, top: 15, bottom: 30 };
+            const xMin = -6, xMax = 6;
+            const peakData = gaussian(muData, muData, sigmaData);
+            const peakTheta = gaussian(muTheta, muTheta, sigmaTheta);
+            const yMax = Math.max(peakData, peakTheta) * 1.15;
+            const { toX, toY, plotW, plotH } = createCoords(pad, w, h, xMin, xMax, 0, yMax);
+
+            drawGridV(ctx, toX, pad.top, plotH, xMin, xMax, 2);
+            drawAxes(ctx, pad, plotW, plotH);
+            drawXLabels(ctx, toX, pad, plotH, xMin, xMax, 2);
+
+            drawGaussianCurve(ctx, gaussian, muData, sigmaData, toX, toY, xMin, xMax,
+                CURVE.blue, rgba(CURVE.blue, 0.2));
+            drawGaussianCurve(ctx, gaussian, muTheta, sigmaTheta, toX, toY, xMin, xMax,
+                CURVE.red, rgba(CURVE.red, 0.2));
+
+            // Labels
+            ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillStyle = CURVE.blue; ctx.fillText('p_data', toX(muData), toY(peakData) - 8);
+            ctx.fillStyle = CURVE.red; ctx.fillText('p_theta', toX(muTheta), toY(peakTheta) - 8);
+        }
+
+        // ======================== DRAW DISCRIMINATOR ========================
+        function drawDiscriminator() {
+            const canvas = document.getElementById('canvasDisc');
+            const { ctx, w, h } = setupCanvas(canvas);
+            clearCanvas(ctx, w, h);
+
+            const pad = { left: 50, right: 20, top: 15, bottom: 30 };
+            const xMin = -6, xMax = 6;
+            const { toX, toY, plotW, plotH } = createCoords(pad, w, h, xMin, xMax, 0, 1);
+
+            drawGridV(ctx, toX, pad.top, plotH, xMin, xMax, 2);
+            drawAxes(ctx, pad, plotW, plotH);
+            drawYLabels(ctx, toY, pad, [0, 0.25, 0.5, 0.75, 1.0]);
+            drawXLabels(ctx, toX, pad, plotH, xMin, xMax, 2);
+            drawHRef(ctx, toY, pad, plotW, 0.5);
+
+            // D*(x) curve
+            drawCurve(ctx, dStar, toX, toY, xMin, xMax, CURVE.green);
+
+            // Fill above 0.5 (green tint) and below (red tint)
+            const step = (xMax - xMin) / 400;
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = CURVE.green;
+            ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0.5));
+            for (let x = xMin; x <= xMax; x += step) ctx.lineTo(toX(x), toY(Math.max(dStar(x), 0.5)));
+            ctx.lineTo(toX(xMax), toY(0.5)); ctx.closePath(); ctx.fill();
+
+            ctx.fillStyle = CURVE.red;
+            ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0.5));
+            for (let x = xMin; x <= xMax; x += step) ctx.lineTo(toX(x), toY(Math.min(dStar(x), 0.5)));
+            ctx.lineTo(toX(xMax), toY(0.5)); ctx.closePath(); ctx.fill();
+            ctx.globalAlpha = 1.0;
+
+            ctx.fillStyle = CURVE.green; ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'left'; ctx.fillText('D*(x)', pad.left + 8, pad.top + 14);
+        }
+
+        // ======================== DRAW LOGITS ========================
+        function drawLogits() {
+            const canvas = document.getElementById('canvasLogits');
+            const { ctx, w, h } = setupCanvas(canvas);
+            clearCanvas(ctx, w, h);
+
+            const pad = { left: 50, right: 20, top: 15, bottom: 30 };
+            const xMin = -6, xMax = 6, yMin = -6, yMaxVal = 6;
+            const { toX, toY, plotW, plotH } = createCoords(pad, w, h, xMin, xMax, yMin, yMaxVal);
+
+            drawGridV(ctx, toX, pad.top, plotH, xMin, xMax, 2);
+            drawAxes(ctx, pad, plotW, plotH);
+            drawHRef(ctx, toY, pad, plotW, 0);
+            drawYLabels(ctx, toY, pad, [-4, -2, 0, 2, 4]);
+            drawXLabels(ctx, toX, pad, plotH, xMin, xMax, 2);
+
+            // h*(x) curve (clipped)
+            ctx.save();
+            ctx.beginPath(); ctx.rect(pad.left, pad.top, plotW, plotH); ctx.clip();
+
+            drawCurve(ctx, hStar, toX, toY, xMin, xMax, CURVE.orange);
+
+            // Fill positive region (orange) and negative (blue)
+            const step = (xMax - xMin) / 400;
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = CURVE.orange;
+            ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0));
+            for (let x = xMin; x <= xMax; x += step) ctx.lineTo(toX(x), toY(Math.max(hStar(x), 0)));
+            ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+
+            ctx.fillStyle = CURVE.blue;
+            ctx.beginPath(); ctx.moveTo(toX(xMin), toY(0));
+            for (let x = xMin; x <= xMax; x += step) ctx.lineTo(toX(x), toY(Math.min(hStar(x), 0)));
+            ctx.lineTo(toX(xMax), toY(0)); ctx.closePath(); ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+
+            // Labels
+            ctx.fillStyle = CURVE.orange; ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'left'; ctx.fillText('h*(x)', pad.left + 8, pad.top + 14);
+
+            ctx.fillStyle = rgba(CURVE.orange, 0.6); ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('h > 0: mas probable real', pad.left + plotW - 5, pad.top + 14);
+            ctx.fillStyle = rgba(CURVE.blue, 0.6);
+            ctx.fillText('h < 0: mas probable generado', pad.left + plotW - 5, pad.top + plotH - 5);
+        }
+
+        // ======================== UPDATE ========================
+        function updateDisplays() {
+            const jsd = jsDivergence(pData, pTheta);
+            const dAtMuData = dStar(muData);
+            const hAtMuData = hStar(muData);
+
+            jsdCard.setValue(jsd.toFixed(4));
+            dstarCard.setValue(dAtMuData.toFixed(3));
+            hstarCard.setValue(hAtMuData.toFixed(3));
+
+            const dist = Math.abs(muTheta - muData);
+            const sigmaRatio = sigmaTheta / sigmaData;
+
+            if (dist < 0.2 && Math.abs(sigmaRatio - 1) < 0.15) {
+                insight.update('safe', 'Distribuciones casi identicas',
+                    'D*(x) &asymp; 0.5 en todas partes y h*(x) &asymp; 0. El discriminador no puede distinguir datos reales de generados. <strong>JSD &asymp; 0</strong>. Este es el equilibrio de Nash: el generador ha ganado.');
+            } else if (dist < 1.5 && sigmaRatio > 0.5 && sigmaRatio < 2.0) {
+                insight.update('warning', 'Solapamiento parcial',
+                    'D*(x) se desvia de 0.5 donde una distribucion domina. Los <strong>logits h*(x)</strong> son positivos donde p_data > p_theta (zona "mas real") y negativos donde p_theta > p_data (zona "mas generado"). La JSD esta entre 0 y log(2).');
+            } else {
+                insight.update('danger', 'Distribuciones muy separadas',
+                    'D*(x) &asymp; 1 donde solo hay datos reales y D*(x) &asymp; 0 donde solo hay datos generados. Los logits |h*(x)| son grandes. La <strong>JSD satura cerca de log(2) &asymp; 0.693</strong> &mdash; gradientes debiles para el generador.');
+            }
+        }
+
+        function updateAll() {
+            drawDistributions();
+            drawDiscriminator();
+            drawLogits();
+            updateDisplays();
+        }
+
+        window.addEventListener('load', updateAll);
+        window.addEventListener('resize', updateAll);
+    </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+/* Interaction overlay styles — question cards and interactive iframes */
+
+/* ── Container ── */
+.interaction-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-interaction-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.92);
+  animation: interaction-fadein 0.3s ease-out;
+}
+
+@keyframes interaction-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Question card ── */
+.interaction-question {
+  padding: 2rem;
+}
+
+.interaction-question-text {
+  color: var(--text-primary, #f8fafc);
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 1.5rem;
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+.interaction-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 500px;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.interaction-choice-btn {
+  background: var(--panel-bg, #1e293b);
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  padding: 0.75rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.interaction-choice-btn:hover:not(:disabled) {
+  background: var(--border, #334155);
+  border-color: var(--accent, #818cf8);
+}
+
+.interaction-choice-btn:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.interaction-choice-btn.correct {
+  border-color: var(--insight, #34d399);
+  background: rgba(52, 211, 153, 0.15);
+}
+
+.interaction-choice-btn.incorrect {
+  border-color: var(--error, #f87171);
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.interaction-hint {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+  font-style: italic;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.interaction-feedback {
+  text-align: center;
+  margin: 0.75rem 0;
+  max-width: 500px;
+}
+
+.interaction-correct {
+  color: var(--insight, #34d399);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.interaction-incorrect {
+  color: var(--error, #f87171);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.interaction-explanation {
+  color: var(--text-secondary, #e2e8f0);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+.interaction-continue-btn {
+  background: var(--accent, #818cf8);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.15s;
+}
+
+.interaction-continue-btn:hover {
+  background: #6366f1;
+}
+
+.interaction-skip-btn {
+  background: none;
+  color: var(--text-dimmed, #64748b);
+  border: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-top: 0.75rem;
+  text-decoration: underline;
+}
+
+.interaction-skip-btn:hover {
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ── Interactive iframe ── */
+.interaction-iframe-wrap {
+  padding: 0;
+}
+
+.interaction-iframe-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: var(--panel-bg, #1e293b);
+  border-bottom: 1px solid var(--border, #334155);
+  color: var(--text-primary, #f8fafc);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.interaction-iframe-close {
+  background: var(--accent, #818cf8);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.interaction-iframe-close:hover {
+  background: #6366f1;
+}
+
+.interaction-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #0f172a;
+}

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¿Por qué los datos sin etiquetar ayudan? — SSVAE</title>
+<link rel="stylesheet" href="./shared/theme.css">
+<style>
+  /* File-specific overrides and additions */
+  * { margin: 0; padding: 0; }
+
+  body {
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 30px 20px;
+    max-width: 1000px;
+  }
+
+  h1 { color: #f8fafc; font-size: 1.8rem; margin-bottom: 6px; }
+  .subtitle { color: #94a3b8; font-size: 1rem; margin-bottom: 24px; }
+
+  .instructions {
+    text-align: center; background: #1e293b; border: 1px solid #334155;
+    border-radius: 10px; padding: 12px 20px; margin: 0 auto 20px;
+    max-width: 750px; font-size: 0.95rem; color: #cbd5e1;
+  }
+
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    max-width: 1000px; margin: 0 auto 20px;
+  }
+
+  .panel {
+    background: #1e293b; border-radius: 16px; padding: 20px; border: 2px solid #334155;
+  }
+  .panel-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 4px; color: #f8fafc; }
+  .panel-subtitle { font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; }
+
+  canvas { height: 360px; background: #0f172a; border-radius: 8px; }
+
+  .stats { display: flex; justify-content: space-around; margin-top: 12px; gap: 10px; }
+  .stat-box { text-align: center; }
+  .stat-label {
+    font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .stat-value { font-size: 1.4rem; font-weight: 700; font-family: 'Courier New', monospace; }
+
+  .controls {
+    background: #1e293b; border-radius: 16px; padding: 18px 24px;
+    border: 2px solid #334155; max-width: 1000px; margin: 0 auto 20px;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 24px;
+  }
+  .control-group {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .control-group label { font-size: 0.9rem; color: #cbd5e1; white-space: nowrap; }
+  input[type="range"] { width: 160px; accent-color: #818cf8; }
+
+  .slider-value {
+    font-family: 'Courier New', monospace; color: #818cf8;
+    font-weight: 600; min-width: 28px; text-align: right;
+  }
+
+  button {
+    background: #818cf8; color: #0f172a; border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  button:hover { background: #a5b4fc; }
+
+  .insight-box {
+    background: rgba(129, 140, 248, 0.12); border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 12px; padding: 16px 20px; max-width: 1000px;
+    margin: 0 auto 20px; font-size: 0.95rem; color: #cbd5e1;
+    line-height: 1.5; border-left: none;
+  }
+  .insight-box strong { color: #818cf8; }
+
+  .legend-item { font-size: 0.8rem; color: #94a3b8; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-cross { font-size: 1rem; font-weight: 700; line-height: 1; }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+    .controls { flex-direction: column; gap: 14px; }
+    h1 { font-size: 1.4rem; }
+    canvas { height: 300px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>¿Por qué los datos sin etiquetar ayudan?</h1>
+<p class="subtitle">Intuición del Semi-Supervised VAE (SSVAE) — Ejercicio 4 del PS2</p>
+
+<div class="instructions">
+  Compara clasificación solo con etiquetados vs. semi-supervisada (EM sobre todos los datos).
+  Ajusta los sliders para ver cuándo los datos sin etiquetar marcan la diferencia.
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="panel-title">Solo supervisado <span style="color:#f87171">(γ<sub>w</sub> = 0)</span></div>
+    <div class="panel-subtitle">Centroides estimados solo con puntos etiquetados</div>
+    <canvas id="canvasSupervised"></canvas>
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">Accuracy</div>
+        <div class="stat-value" id="accSup" style="color:#f87171">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Error centroides</div>
+        <div class="stat-value" id="errSup" style="color:#f87171">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Semi-supervisado <span style="color:#34d399">(γ<sub>w</sub> = 1)</span></div>
+    <div class="panel-subtitle">EM con etiquetados + sin etiquetar (25 iteraciones)</div>
+    <canvas id="canvasSemi"></canvas>
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">Accuracy</div>
+        <div class="stat-value" id="accSemi" style="color:#34d399">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Error centroides</div>
+        <div class="stat-value" id="errSemi" style="color:#34d399">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#6496ff"></div> Clase 1</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#64ff96"></div> Clase 2</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff6496"></div> Clase 3</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#555; border: 1px solid #888; border-radius:50%"></div> Sin etiquetar</div>
+  <div class="legend-item"><span class="legend-cross" style="color:#94a3b8">✕</span> Centroide real</div>
+  <div class="legend-item"><span class="legend-cross" style="color:#f8fafc">✛</span> Centroide estimado</div>
+</div>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Etiquetados/clase:</label>
+    <input type="range" id="sliderLabeled" min="1" max="15" value="2" step="1">
+    <span class="slider-value" id="valLabeled">2</span>
+  </div>
+  <div class="control-group">
+    <label>Separación:</label>
+    <input type="range" id="sliderSep" min="0.5" max="3.0" value="1.5" step="0.1">
+    <span class="slider-value" id="valSep">1.5</span>
+  </div>
+  <button id="btnRegenerate">Regenerar datos</button>
+  <div style="display:flex;align-items:center;gap:8px;border-left:1px solid #334155;padding-left:16px;">
+    <button id="btnEmStep" style="background:#34d399;font-size:0.85rem;padding:6px 14px;">Paso EM ▶</button>
+    <button id="btnEmPlay" style="background:#64748b;font-size:0.85rem;padding:6px 14px;">▶▶ Auto</button>
+    <span style="font-size:0.85rem;color:#94a3b8;">Iter: <strong id="emIterDisplay" style="color:#34d399;">—</strong>/25</span>
+  </div>
+</div>
+
+<div class="insight-box" id="insightBox">
+  Ajusta los controles para explorar.
+</div>
+
+<script type="module">
+import { setupCanvas } from './shared/canvas.js';
+
+// ── PRNG (mulberry32) ──────────────────────────────────────
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Box-Muller for normal samples
+function randNormal(rng) {
+  let u1 = rng(), u2 = rng();
+  while (u1 === 0) u1 = rng();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+// ── State ──────────────────────────────────────────────────
+let seed = 42;
+const K = 3;              // number of classes
+const N_PER_CLASS = 80;   // points per class
+const SIGMA = 1.0;        // cluster std dev
+const EM_ITERS = 25;
+const COLORS = ['#6496ff', '#64ff96', '#ff6496'];
+const COLORS_DIM = ['rgba(100,150,255,0.15)', 'rgba(100,255,150,0.15)', 'rgba(255,100,150,0.15)'];
+
+let allPoints = [];       // [{x, y, cls}]
+let labeledIdx = [];      // indices of labeled points
+let rng;
+
+// ── Data generation ────────────────────────────────────────
+function generateData(separation) {
+  rng = mulberry32(seed);
+  allPoints = [];
+
+  // Equilateral triangle centroids
+  const trueCentroids = [];
+  for (let k = 0; k < K; k++) {
+    const angle = (2 * Math.PI * k / K) - Math.PI / 2;
+    trueCentroids.push({
+      x: separation * Math.cos(angle),
+      y: separation * Math.sin(angle)
+    });
+  }
+
+  for (let k = 0; k < K; k++) {
+    for (let i = 0; i < N_PER_CLASS; i++) {
+      allPoints.push({
+        x: trueCentroids[k].x + SIGMA * randNormal(rng),
+        y: trueCentroids[k].y + SIGMA * randNormal(rng),
+        cls: k
+      });
+    }
+  }
+
+  return trueCentroids;
+}
+
+function selectLabeled(nPerClass) {
+  labeledIdx = [];
+  // Shuffle indices per class and pick first nPerClass
+  for (let k = 0; k < K; k++) {
+    const classIdx = [];
+    for (let i = 0; i < allPoints.length; i++) {
+      if (allPoints[i].cls === k) classIdx.push(i);
+    }
+    // Fisher-Yates shuffle
+    for (let i = classIdx.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [classIdx[i], classIdx[j]] = [classIdx[j], classIdx[i]];
+    }
+    for (let i = 0; i < Math.min(nPerClass, classIdx.length); i++) {
+      labeledIdx.push(classIdx[i]);
+    }
+  }
+}
+
+// ── Supervised: centroid from labeled only ──────────────────
+function supervisedCentroids() {
+  const centroids = [];
+  for (let k = 0; k < K; k++) {
+    let sx = 0, sy = 0, n = 0;
+    for (const idx of labeledIdx) {
+      if (allPoints[idx].cls === k) {
+        sx += allPoints[idx].x;
+        sy += allPoints[idx].y;
+        n++;
+      }
+    }
+    centroids.push(n > 0 ? { x: sx / n, y: sy / n } : { x: 0, y: 0 });
+  }
+  return centroids;
+}
+
+// ── Semi-supervised: EM (single step) ────────────────────────
+function emStep(centroids) {
+  const updated = centroids.map(c => ({ x: c.x, y: c.y }));
+  const labeledSet = new Set(labeledIdx);
+  const N = allPoints.length;
+
+  // E-step: compute responsibilities
+  const resp = new Float64Array(N * K);
+  for (let i = 0; i < N; i++) {
+    if (labeledSet.has(i)) {
+      for (let k = 0; k < K; k++) resp[i * K + k] = 0;
+      resp[i * K + allPoints[i].cls] = 1;
+    } else {
+      let maxLog = -Infinity;
+      for (let k = 0; k < K; k++) {
+        const dx = allPoints[i].x - updated[k].x;
+        const dy = allPoints[i].y - updated[k].y;
+        const logp = -(dx * dx + dy * dy) / (2 * SIGMA * SIGMA);
+        resp[i * K + k] = logp;
+        if (logp > maxLog) maxLog = logp;
+      }
+      let sum = 0;
+      for (let k = 0; k < K; k++) {
+        resp[i * K + k] = Math.exp(resp[i * K + k] - maxLog);
+        sum += resp[i * K + k];
+      }
+      for (let k = 0; k < K; k++) resp[i * K + k] /= sum;
+    }
+  }
+
+  // M-step: update centroids
+  for (let k = 0; k < K; k++) {
+    let sx = 0, sy = 0, sw = 0;
+    for (let i = 0; i < N; i++) {
+      const w = resp[i * K + k];
+      sx += w * allPoints[i].x;
+      sy += w * allPoints[i].y;
+      sw += w;
+    }
+    if (sw > 0) {
+      updated[k].x = sx / sw;
+      updated[k].y = sy / sw;
+    }
+  }
+
+  return updated;
+}
+
+function emCentroids(initCentroids) {
+  let centroids = initCentroids.map(c => ({ x: c.x, y: c.y }));
+  for (let iter = 0; iter < EM_ITERS; iter++) {
+    centroids = emStep(centroids);
+  }
+  return centroids;
+}
+
+// ── Step-by-step EM state ──
+let stepCentroids = null;   // current centroids during stepping
+let stepIter = 0;           // current iteration
+let stepTrueCentroids = null;
+let autoPlayTimer = null;
+
+// ── Classification (nearest centroid) ───────────────────────
+function classify(point, centroids) {
+  let best = 0, bestDist = Infinity;
+  for (let k = 0; k < K; k++) {
+    const dx = point.x - centroids[k].x;
+    const dy = point.y - centroids[k].y;
+    const d = dx * dx + dy * dy;
+    if (d < bestDist) { bestDist = d; best = k; }
+  }
+  return best;
+}
+
+function accuracy(centroids) {
+  let correct = 0;
+  for (const p of allPoints) {
+    if (classify(p, centroids) === p.cls) correct++;
+  }
+  return correct / allPoints.length;
+}
+
+function centroidError(estimated, real) {
+  // Greedy matching to handle label permutation (sufficient for K<=5)
+  const used = new Set();
+  let total = 0;
+  // For each real centroid, find the closest unmatched estimated centroid
+  for (let k = 0; k < K; k++) {
+    let bestDist = Infinity, bestJ = -1;
+    for (let j = 0; j < K; j++) {
+      if (used.has(j)) continue;
+      const dx = estimated[j].x - real[k].x;
+      const dy = estimated[j].y - real[k].y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < bestDist) { bestDist = d; bestJ = j; }
+    }
+    used.add(bestJ);
+    total += bestDist;
+  }
+  return total / K;
+}
+
+// Map data coords to canvas coords
+function dataToCanvas(x, y, w, h, bounds) {
+  const px = (x - bounds.xMin) / (bounds.xMax - bounds.xMin) * (w - 60) + 30;
+  const py = (1 - (y - bounds.yMin) / (bounds.yMax - bounds.yMin)) * (h - 60) + 30;
+  return { px, py };
+}
+
+// ── Drawing ────────────────────────────────────────────────
+function drawScene(canvas, centroids, trueCentroids, title) {
+  const { ctx, w, h } = setupCanvas(canvas);
+  const labeledSet = new Set(labeledIdx);
+
+  // Compute bounds with padding
+  const pad = 1.2;
+  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+  for (const p of allPoints) {
+    if (p.x < xMin) xMin = p.x;
+    if (p.x > xMax) xMax = p.x;
+    if (p.y < yMin) yMin = p.y;
+    if (p.y > yMax) yMax = p.y;
+  }
+  const cx = (xMin + xMax) / 2, cy = (yMin + yMax) / 2;
+  const range = Math.max(xMax - xMin, yMax - yMin) * pad / 2;
+  const bounds = {
+    xMin: cx - range, xMax: cx + range,
+    yMin: cy - range, yMax: cy + range
+  };
+
+  // Draw decision regions (Voronoi coloring)
+  const step = 5;
+  for (let px = 0; px < w; px += step) {
+    for (let py = 0; py < h; py += step) {
+      // Canvas to data coords
+      const dx = bounds.xMin + (px - 30) / (w - 60) * (bounds.xMax - bounds.xMin);
+      const dy = bounds.yMax - (py - 30) / (h - 60) * (bounds.yMax - bounds.yMin);
+      const cls = classify({ x: dx, y: dy }, centroids);
+      ctx.fillStyle = COLORS_DIM[cls];
+      ctx.fillRect(px, py, step, step);
+    }
+  }
+
+  // Draw unlabeled points
+  for (let i = 0; i < allPoints.length; i++) {
+    if (labeledSet.has(i)) continue;
+    const p = allPoints[i];
+    const { px, py } = dataToCanvas(p.x, p.y, w, h, bounds);
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+    ctx.fill();
+  }
+
+  // Draw labeled points
+  for (const idx of labeledIdx) {
+    const p = allPoints[idx];
+    const { px, py } = dataToCanvas(p.x, p.y, w, h, bounds);
+    ctx.beginPath();
+    ctx.arc(px, py, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = COLORS[p.cls];
+    ctx.fill();
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Draw true centroids (faint crosshair, dashed)
+  for (let k = 0; k < K; k++) {
+    const { px, py } = dataToCanvas(trueCentroids[k].x, trueCentroids[k].y, w, h, bounds);
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+    ctx.lineWidth = 1.5;
+    const s = 10;
+    ctx.beginPath(); ctx.moveTo(px - s, py); ctx.lineTo(px + s, py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, py - s); ctx.lineTo(px, py + s); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw estimated centroids (solid crosshair)
+  for (let k = 0; k < K; k++) {
+    const { px, py } = dataToCanvas(centroids[k].x, centroids[k].y, w, h, bounds);
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 2.5;
+    const s = 12;
+    ctx.beginPath(); ctx.moveTo(px - s, py); ctx.lineTo(px + s, py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, py - s); ctx.lineTo(px, py + s); ctx.stroke();
+    // Color dot in center
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = COLORS[k];
+    ctx.fill();
+  }
+}
+
+// ── Redraw semi panel from step state ─────────────────────
+function drawSemiStep() {
+  const trueCentroids = stepTrueCentroids;
+  const centroids = stepCentroids;
+  drawScene(document.getElementById('canvasSemi'), centroids, trueCentroids, 'Semi-supervisado');
+
+  const accSS = accuracy(centroids);
+  const errSS = centroidError(centroids, trueCentroids);
+  document.getElementById('accSemi').textContent = (accSS * 100).toFixed(1) + '%';
+  document.getElementById('errSemi').textContent = errSS.toFixed(3);
+  document.getElementById('emIterDisplay').textContent = stepIter;
+
+  // Update subtitle
+  const subtitle = document.querySelector('#canvasSemi')?.parentElement?.querySelector('.panel-subtitle');
+  if (subtitle) subtitle.textContent = `EM iteracion ${stepIter}/${EM_ITERS}`;
+}
+
+function doEmStep() {
+  if (stepIter >= EM_ITERS) return;
+  stepCentroids = emStep(stepCentroids);
+  stepIter++;
+  drawSemiStep();
+}
+
+function stopAutoPlay() {
+  if (autoPlayTimer) { clearInterval(autoPlayTimer); autoPlayTimer = null; }
+  document.getElementById('btnEmPlay').textContent = '▶▶ Auto';
+  document.getElementById('btnEmPlay').style.background = '#64748b';
+}
+
+// ── Main update ────────────────────────────────────────────
+function update() {
+  stopAutoPlay();
+
+  const nLabeled = parseInt(document.getElementById('sliderLabeled').value);
+  const separation = parseFloat(document.getElementById('sliderSep').value);
+
+  document.getElementById('valLabeled').textContent = nLabeled;
+  document.getElementById('valSep').textContent = separation.toFixed(1);
+
+  // Generate data
+  const trueCentroids = generateData(separation);
+  selectLabeled(nLabeled);
+
+  // Supervised
+  const supCentroids = supervisedCentroids();
+  const accS = accuracy(supCentroids);
+  const errS = centroidError(supCentroids, trueCentroids);
+
+  // Semi-supervised (EM initialized from supervised centroids)
+  const semiCentroids = emCentroids(supCentroids);
+  const accSS = accuracy(semiCentroids);
+  const errSS = centroidError(semiCentroids, trueCentroids);
+
+  // Initialize step state (at iteration 0 = supervised init)
+  stepTrueCentroids = trueCentroids;
+  stepCentroids = supCentroids.map(c => ({ x: c.x, y: c.y }));
+  stepIter = 0;
+  document.getElementById('emIterDisplay').textContent = '0';
+
+  // Draw
+  drawScene(document.getElementById('canvasSupervised'), supCentroids, trueCentroids, 'Supervisado');
+  drawScene(document.getElementById('canvasSemi'), semiCentroids, trueCentroids, 'Semi-supervisado');
+
+  // Update semi subtitle to final
+  const subtitle = document.querySelector('#canvasSemi')?.parentElement?.querySelector('.panel-subtitle');
+  if (subtitle) subtitle.textContent = `EM con etiquetados + sin etiquetar (${EM_ITERS} iteraciones)`;
+  document.getElementById('emIterDisplay').textContent = String(EM_ITERS);
+
+  // Stats
+  document.getElementById('accSup').textContent = (accS * 100).toFixed(1) + '%';
+  document.getElementById('accSemi').textContent = (accSS * 100).toFixed(1) + '%';
+  document.getElementById('errSup').textContent = errS.toFixed(3);
+  document.getElementById('errSemi').textContent = errSS.toFixed(3);
+
+  // Insight box
+  const gap = (accSS - accS) * 100;
+  const bestAcc = Math.max(accS, accSS) * 100;
+  const insightEl = document.getElementById('insightBox');
+
+  if (bestAcc < 55) {
+    insightEl.innerHTML =
+      `<strong>Ambos ≈ ${bestAcc.toFixed(0)}%</strong> — Los clusters están tan superpuestos que ningún método clasifica bien ` +
+      `(accuracy cercana al azar: ${(100/K).toFixed(0)}%). ` +
+      `<strong>Sube la separación</strong> para ver la diferencia entre supervisado y semi-supervisado.`;
+  } else if (gap > 10) {
+    insightEl.innerHTML =
+      `<strong>Gap: +${gap.toFixed(1)}%</strong> — Con solo <strong>${nLabeled}</strong> etiquetados/clase, ` +
+      `los centroides supervisados son ruidosos (error ${errS.toFixed(3)}) y la frontera de decisión es pobre. ` +
+      `EM aprovecha los <strong>${K * N_PER_CLASS - K * nLabeled}</strong> puntos sin etiquetar para refinar los centroides ` +
+      `(error ${errSS.toFixed(3)}), mejorando drásticamente la clasificación. ` +
+      `<strong>Pulsa "Paso EM" para ver la convergencia paso a paso.</strong>`;
+  } else if (gap >= 2) {
+    insightEl.innerHTML =
+      `<strong>Gap: +${gap.toFixed(1)}%</strong> — La ventaja semi-supervisada se reduce con más datos etiquetados. ` +
+      `Los datos sin etiquetar aún mejoran los centroides ` +
+      `(error ${errSS.toFixed(3)} vs ${errS.toFixed(3)}), ` +
+      `pero el clasificador supervisado ya captura la estructura principal. ` +
+      `<strong>Pulsa "Paso EM" para ver como convergen los centroides.</strong>`;
+  } else {
+    insightEl.innerHTML =
+      `<strong>Gap: ${gap >= 0 ? '+' : ''}${gap.toFixed(1)}%</strong> — Con <strong>${nLabeled}</strong> etiquetados/clase, ` +
+      `ambos métodos funcionan similarmente. El supervisado ya tiene suficiente información. ` +
+      `<strong>Prueba bajar el slider de etiquetados</strong> para ver cuándo los datos sin etiquetar se vuelven cruciales.`;
+  }
+}
+
+// ── Event listeners ────────────────────────────────────────
+document.getElementById('sliderLabeled').addEventListener('input', update);
+document.getElementById('sliderSep').addEventListener('input', update);
+document.getElementById('btnRegenerate').addEventListener('click', () => {
+  seed = Date.now() & 0xFFFFFFFF;
+  update();
+});
+
+document.getElementById('btnEmStep').addEventListener('click', () => {
+  stopAutoPlay();
+  // If at final state, reset to step 0 first
+  if (stepIter >= EM_ITERS) {
+    const supCentroids = supervisedCentroids();
+    stepCentroids = supCentroids.map(c => ({ x: c.x, y: c.y }));
+    stepIter = 0;
+    drawSemiStep();
+    return;
+  }
+  doEmStep();
+});
+
+document.getElementById('btnEmPlay').addEventListener('click', () => {
+  if (autoPlayTimer) { stopAutoPlay(); return; }
+  // Reset if at end
+  if (stepIter >= EM_ITERS) {
+    const supCentroids = supervisedCentroids();
+    stepCentroids = supCentroids.map(c => ({ x: c.x, y: c.y }));
+    stepIter = 0;
+    drawSemiStep();
+  }
+  document.getElementById('btnEmPlay').textContent = '⏸ Pausar';
+  document.getElementById('btnEmPlay').style.background = '#f87171';
+  autoPlayTimer = setInterval(() => {
+    if (stepIter >= EM_ITERS) { stopAutoPlay(); return; }
+    doEmStep();
+  }, 300);
+});
+
+// Handle resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(update, 100);
+});
+
+// Initial render
+update();
+</script>
+</body>
+</html>

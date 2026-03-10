@@ -1,0 +1,150 @@
+/* Shared top navigation bar across all pages */
+
+.topnav {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  gap: 6px;
+  flex-shrink: 0;
+  z-index: 100;
+  min-height: 44px;
+}
+
+.topnav-brand {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.topnav-brand:hover {
+  color: var(--accent);
+}
+
+/* Nav links */
+.topnav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.topnav-link:hover {
+  background: rgba(129, 140, 248, 0.1);
+  color: var(--text-secondary);
+}
+
+.topnav-link.active {
+  background: rgba(129, 140, 248, 0.15);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Spacer pushes right section to end */
+.topnav-spacer {
+  flex: 1;
+}
+
+/* Right section */
+.topnav-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Language selector */
+.topnav-lang {
+  background: var(--body-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+/* Page-specific slot (e.g. lesson title, tutor controls) */
+.topnav-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.topnav-slot-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Small icon buttons in topnav */
+.topnav-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.topnav-icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.topnav-icon-btn.active {
+  background: rgba(129, 140, 248, 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Separator line between brand/links and page slot */
+.topnav-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* Mobile: collapse nav links into hamburger */
+@media (max-width: 600px) {
+  .topnav { padding: 8px 10px; gap: 4px; }
+  .topnav-links { display: none; }
+  .topnav-links.open { display: flex; position: absolute; top: 44px; left: 0; right: 0; background: var(--panel-bg); border-bottom: 1px solid var(--border); padding: 8px 12px; z-index: 101; flex-wrap: wrap; }
+  .topnav-hamburger { display: flex; }
+  .topnav-sep { display: none; }
+}
+
+@media (min-width: 601px) {
+  .topnav-hamburger { display: none; }
+}

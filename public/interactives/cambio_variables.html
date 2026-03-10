@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambio de Variables — Normalizing Flows</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific overrides and additions */
+        body { max-width: 950px; }
+        h1 { margin-bottom: 5px; }
+        h2 { color: var(--text-dim); font-size: 1.1em; margin-top: 0; margin-bottom: 10px; }
+        .formula { font-size: 0.95em; margin-bottom: 20px; }
+        .formula .highlight { color: #64ff96; font-weight: bold; }
+        .formula .dim { color: var(--accent); }
+        .graphs-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;
+        }
+        .graph-container { padding: 15px; border-radius: 10px; }
+        canvas { height: 220px; }
+        .controls { padding: 20px; border-radius: 10px; }
+        .control-group { gap: 15px; }
+        select {
+            background: var(--canvas); color: #eee; border: 1px solid var(--border);
+            border-radius: 5px; padding: 6px 10px; font-size: 0.9em;
+        }
+        .insight {
+            background: rgba(233, 69, 96, 0.1);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 15px 20px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        .insight strong { color: var(--accent); }
+        .insight .correct { color: #64ff96; }
+        .insight .wrong { color: var(--accent); }
+        @media (max-width: 700px) {
+            .graphs-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Cambio de Variables en 1D</h1>
+    <p class="subtitle">Por que la correccion Jacobiana es necesaria al transformar distribuciones</p>
+
+    <div class="formula" id="formula-box">
+        Transformacion: x = f(z) = <span id="formula-text">μ + σ · z</span><br>
+        Densidad correcta: p<sub>X</sub>(x) = p<sub>Z</sub>(z) / |f'(z)| &nbsp;donde&nbsp; z = f<sup>-1</sup>(x)
+    </div>
+
+    <div class="graphs-row">
+        <div class="graph-container">
+            <h2>Distribucion base p<sub>Z</sub>(z) = N(0, 1)</h2>
+            <canvas id="graphZ"></canvas>
+        </div>
+
+        <div class="graph-container">
+            <h2>Distribucion transformada p<sub>X</sub>(x)</h2>
+            <canvas id="graphX"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e94560"></div>
+                    <span>Sin correccion (solo p<sub>Z</sub>(f<sup>-1</sup>(x)))</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #64ff96"></div>
+                    <span>Con correccion Jacobiana (correcta)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <div class="control">
+                <label>Tipo de transformacion:</label>
+                <select id="transform-type">
+                    <option value="affine">Afin: x = μ + σ · z</option>
+                    <option value="nonlinear">No lineal: x = z + a · tanh(b · z)</option>
+                </select>
+            </div>
+            <div class="control" id="ctrl-param1">
+                <label><span id="param1-label">μ (desplazamiento)</span>: <span class="value" id="param1-val">0.0</span></label>
+                <input type="range" id="param1" min="-3" max="3" step="0.1" value="0">
+            </div>
+            <div class="control" id="ctrl-param2">
+                <label><span id="param2-label">σ (escala)</span>: <span class="value" id="param2-val">1.0</span></label>
+                <input type="range" id="param2" min="0.3" max="3.0" step="0.05" value="1.0">
+            </div>
+        </div>
+    </div>
+
+    <div class="insight" id="insight-box">
+        Con σ = 1.0 y μ = 0.0, la transformacion es la <strong>identidad</strong> (no cambia nada). Las curvas roja y verde coinciden con la Gaussiana base.
+    </div>
+
+    <script type="module">
+        import { setupCanvas } from './shared/canvas.js';
+        import { gaussian } from './shared/math.js';
+
+        // --- Estado ---
+        let transformType = 'affine';
+        let param1 = 0.0;   // mu o a
+        let param2 = 1.0;   // sigma o b
+
+        // Transformacion forward f(z) y su derivada f'(z)
+        function forwardF(z) {
+            if (transformType === 'affine') {
+                return param1 + param2 * z;
+            } else {
+                return z + param1 * Math.tanh(param2 * z);
+            }
+        }
+
+        function forwardDeriv(z) {
+            if (transformType === 'affine') {
+                return param2;
+            } else {
+                const t = Math.tanh(param2 * z);
+                return 1 + param1 * param2 * (1 - t * t);
+            }
+        }
+
+        // --- Canvas ---
+        // Note: setupCanvas returns {ctx, w, h} but this file uses {ctx, width, height}
+        function setupCanvasLocal(canvas) {
+            const { ctx, w, h } = setupCanvas(canvas);
+            return { ctx, width: w, height: h };
+        }
+
+        function drawAxes(ctx, width, height, xMin, xMax, yMax, label) {
+            const left = 40, bottom = height - 30, top = 15, right = width - 15;
+            // Fondo
+            ctx.fillStyle = '#16213e';
+            ctx.fillRect(0, 0, width, height);
+            // Ejes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(left, bottom);
+            ctx.lineTo(right, bottom);
+            ctx.moveTo(left, top);
+            ctx.lineTo(left, bottom);
+            ctx.stroke();
+            // Marcas X
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            const step = (xMax - xMin) <= 8 ? 1 : 2;
+            for (let x = Math.ceil(xMin); x <= Math.floor(xMax); x += step) {
+                const px = left + (x - xMin) / (xMax - xMin) * (right - left);
+                ctx.fillText(x.toString(), px, bottom + 15);
+                ctx.beginPath();
+                ctx.moveTo(px, bottom);
+                ctx.lineTo(px, bottom + 4);
+                ctx.stroke();
+            }
+            // Funciones de transformacion
+            const toX = (x) => left + (x - xMin) / (xMax - xMin) * (right - left);
+            const toY = (y) => bottom - (y / yMax) * (bottom - top);
+            return { toX, toY, left, right, top, bottom };
+        }
+
+        // --- Dibujar distribucion base ---
+        function drawBaseDistribution() {
+            const canvas = document.getElementById('graphZ');
+            const { ctx, width, height } = setupCanvasLocal(canvas);
+            const zMin = -4, zMax = 4, yMax = 0.5;
+            const { toX, toY } = drawAxes(ctx, width, height, zMin, zMax, yMax);
+
+            // Rellenar area
+            ctx.fillStyle = 'rgba(100, 150, 255, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(toX(zMin), toY(0));
+            for (let z = zMin; z <= zMax; z += 0.02) {
+                ctx.lineTo(toX(z), toY(gaussian(z, 0, 1)));
+            }
+            ctx.lineTo(toX(zMax), toY(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // Curva
+            ctx.strokeStyle = '#6496ff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let z = zMin; z <= zMax; z += 0.02) {
+                const px = toX(z), py = toY(gaussian(z, 0, 1));
+                if (z === zMin) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // --- Dibujar distribucion transformada ---
+        function drawTransformedDistribution() {
+            const canvas = document.getElementById('graphX');
+            const { ctx, width, height } = setupCanvasLocal(canvas);
+
+            // Determinar rango x escaneando
+            const zMin = -4, zMax = 4;
+            let xSamples = [];
+            for (let z = zMin; z <= zMax; z += 0.01) {
+                xSamples.push(forwardF(z));
+            }
+            let xDataMin = Math.min(...xSamples);
+            let xDataMax = Math.max(...xSamples);
+            // Agregar margen
+            const margin = (xDataMax - xDataMin) * 0.15 + 0.5;
+            const xMin = Math.floor(xDataMin - margin);
+            const xMax = Math.ceil(xDataMax + margin);
+            const yMax = 0.7;
+
+            const { toX, toY } = drawAxes(ctx, width, height, xMin, xMax, yMax);
+
+            // Plotear parametricamente: recorremos z, calculamos x = f(z)
+            // Curva ROJA (sin correccion): (f(z), p_Z(z)) — INCORRECTA
+            // Curva VERDE (con correccion): (f(z), p_Z(z) / |f'(z)|) — CORRECTA
+
+            const zStep = 0.005;
+            const points_wrong = [];
+            const points_correct = [];
+
+            for (let z = zMin; z <= zMax; z += zStep) {
+                const x = forwardF(z);
+                const pz = gaussian(z, 0, 1);
+                const fprime = Math.abs(forwardDeriv(z));
+                if (fprime < 1e-8) continue;  // evitar division por 0
+                points_wrong.push({ x, y: pz });
+                points_correct.push({ x, y: pz / fprime });
+            }
+
+            // Ordenar por x para dibujar correctamente
+            points_wrong.sort((a, b) => a.x - b.x);
+            points_correct.sort((a, b) => a.x - b.x);
+
+            // Rellenar area correcta (verde)
+            ctx.fillStyle = 'rgba(100, 255, 150, 0.15)';
+            ctx.beginPath();
+            ctx.moveTo(toX(points_correct[0].x), toY(0));
+            for (const p of points_correct) {
+                ctx.lineTo(toX(p.x), toY(Math.min(p.y, yMax)));
+            }
+            ctx.lineTo(toX(points_correct[points_correct.length - 1].x), toY(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // Curva roja (sin correccion)
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            let started = false;
+            for (const p of points_wrong) {
+                const px = toX(p.x), py = toY(Math.min(p.y, yMax));
+                if (!started) { ctx.moveTo(px, py); started = true; }
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Curva verde (con correccion)
+            ctx.strokeStyle = '#64ff96';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            started = false;
+            for (const p of points_correct) {
+                const px = toX(p.x), py = toY(Math.min(p.y, yMax));
+                if (!started) { ctx.moveTo(px, py); started = true; }
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        // --- Actualizar insight ---
+        function updateInsight() {
+            const box = document.getElementById('insight-box');
+            if (transformType === 'affine') {
+                const mu = param1, sigma = param2;
+                if (Math.abs(sigma - 1) < 0.06 && Math.abs(mu) < 0.06) {
+                    box.innerHTML = 'Con σ = 1.0 y μ = 0.0, la transformacion es la <strong>identidad</strong> (no cambia nada). Las curvas <span class="wrong">roja</span> y <span class="correct">verde</span> coinciden con la Gaussiana base.';
+                } else if (sigma > 1) {
+                    box.innerHTML = `Con σ = ${sigma.toFixed(1)}, la transformacion <strong>estira</strong> el espacio por un factor de ${sigma.toFixed(1)}. La densidad <span class="correct">correcta (verde)</span> es ${(1/sigma).toFixed(2)} veces la <span class="wrong">incorrecta (roja)</span>. Estirar → densidad baja.`;
+                } else {
+                    box.innerHTML = `Con σ = ${sigma.toFixed(2)}, la transformacion <strong>comprime</strong> el espacio por un factor de ${sigma.toFixed(2)}. La densidad <span class="correct">correcta (verde)</span> es ${(1/sigma).toFixed(2)} veces la <span class="wrong">incorrecta (roja)</span>. Comprimir → densidad sube.`;
+                }
+            } else {
+                const a = param1, b = param2;
+                if (Math.abs(a) < 0.06) {
+                    box.innerHTML = 'Con a ≈ 0, la transformacion es casi la <strong>identidad</strong>. Ambas curvas coinciden.';
+                } else {
+                    box.innerHTML = `En la transformacion no lineal x = z + ${a.toFixed(1)}·tanh(${b.toFixed(1)}·z), el factor de correccion <strong>varia en cada punto</strong>. Donde f'(z) > 1 (estira), la densidad <span class="correct">verde</span> es menor que la <span class="wrong">roja</span>. Donde f'(z) < 1 (comprime), la densidad <span class="correct">verde</span> es mayor. La <span class="wrong">roja punteada</span> ignora esto y da una densidad incorrecta.`;
+                }
+            }
+        }
+
+        // --- Actualizar formula ---
+        function updateFormula() {
+            const text = document.getElementById('formula-text');
+            if (transformType === 'affine') {
+                text.textContent = `${param1.toFixed(1)} + ${param2.toFixed(2)} · z`;
+            } else {
+                text.textContent = `z + ${param1.toFixed(1)} · tanh(${param2.toFixed(1)} · z)`;
+            }
+        }
+
+        // --- Controles ---
+        function setupControls() {
+            const typeSelect = document.getElementById('transform-type');
+            const slider1 = document.getElementById('param1');
+            const slider2 = document.getElementById('param2');
+            const val1 = document.getElementById('param1-val');
+            const val2 = document.getElementById('param2-val');
+            const label1 = document.getElementById('param1-label');
+            const label2 = document.getElementById('param2-label');
+
+            function updateSliderLabels() {
+                if (transformType === 'affine') {
+                    label1.textContent = 'μ (desplazamiento)';
+                    label2.textContent = 'σ (escala)';
+                    slider1.min = -3; slider1.max = 3; slider1.step = 0.1; slider1.value = param1;
+                    slider2.min = 0.3; slider2.max = 3.0; slider2.step = 0.05; slider2.value = param2;
+                } else {
+                    label1.textContent = 'a (amplitud)';
+                    label2.textContent = 'b (frecuencia)';
+                    slider1.min = -2; slider1.max = 2; slider1.step = 0.1; slider1.value = param1;
+                    slider2.min = 0.1; slider2.max = 3.0; slider2.step = 0.1; slider2.value = param2;
+                }
+                val1.textContent = parseFloat(slider1.value).toFixed(1);
+                val2.textContent = parseFloat(slider2.value).toFixed(transformType === 'affine' ? 2 : 1);
+            }
+
+            typeSelect.addEventListener('change', () => {
+                transformType = typeSelect.value;
+                if (transformType === 'affine') {
+                    param1 = 0; param2 = 1.0;
+                } else {
+                    param1 = 0.5; param2 = 1.0;
+                }
+                updateSliderLabels();
+                updateAll();
+            });
+
+            slider1.addEventListener('input', () => {
+                param1 = parseFloat(slider1.value);
+                val1.textContent = param1.toFixed(1);
+                updateAll();
+            });
+
+            slider2.addEventListener('input', () => {
+                param2 = parseFloat(slider2.value);
+                val2.textContent = param2.toFixed(transformType === 'affine' ? 2 : 1);
+                updateAll();
+            });
+
+            updateSliderLabels();
+        }
+
+        // --- Principal ---
+        function updateAll() {
+            drawBaseDistribution();
+            drawTransformedDistribution();
+            updateFormula();
+            updateInsight();
+        }
+
+        window.addEventListener('load', () => {
+            setupControls();
+            updateAll();
+        });
+        window.addEventListener('resize', updateAll);
+    </script>
+</body>
+</html>

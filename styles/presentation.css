@@ -1,0 +1,656 @@
+/* Presentation Player — Dark theme matching XCS236 design system */
+
+:root {
+  --body-bg: #0f172a;
+  --panel-bg: #1e293b;
+  --border: #334155;
+  --accent: #818cf8;
+  --insight: #34d399;
+  --code: #c4b5fd;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dimmed: #64748b;
+  --axis: #475569;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #38bdf8;
+
+  /* z-index scale */
+  --z-katex-overlay: 10;
+  --z-end-screen: 15;
+  --z-subtitle: 20;
+  --z-voice-loading: 25;
+  --z-interaction-overlay: 50;
+  --z-settings-backdrop: 1000;
+  --z-settings-panel: 1100;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--body-bg);
+  color: var(--text-secondary);
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+}
+
+/* === App layout — flex row so chat pushes player aside === */
+#app-layout {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* === Fullscreen: app-layout is the fullscreen element === */
+#app-layout:fullscreen {
+  background: var(--body-bg);
+}
+
+/* === Main layout === */
+.player-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Header */
+.player-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.player-header h1 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Fullscreen button — mobile only */
+.player-header .fullscreen-btn {
+  display: none;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.player-header .fullscreen-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+@media (max-width: 768px) {
+  .player-header .fullscreen-btn { display: flex; align-items: center; }
+}
+
+.player-header .settings-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+.player-header .settings-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* Canvas stage */
+.player-stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.player-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* KaTeX overlay — positioned over the canvas */
+.katex-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: var(--z-katex-overlay);
+}
+
+.katex-overlay .katex-item {
+  position: absolute;
+  transition: opacity 0.3s ease;
+}
+
+/* === Controls bar === */
+.pres-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.pres-play-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: var(--body-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.pres-play-btn:hover { background: #a5b4fc; }
+.pres-play-btn:active { transform: scale(0.95); }
+
+.pres-time {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+/* Progress bar */
+.pres-progress-wrap {
+  flex: 1;
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.pres-progress-wrap {
+  cursor: pointer;
+}
+
+.pres-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  position: relative;
+}
+
+.pres-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  width: 0%;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+
+.pres-progress-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid var(--text-primary);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: left 0.05s linear;
+}
+
+/* Scene markers on progress bar */
+.pres-markers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pres-marker {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 12px;
+  background: var(--text-dimmed);
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  opacity: 0.6;
+}
+
+.pres-scene-label {
+  font-size: 0.75rem;
+  color: var(--text-dimmed);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* CC (subtitle toggle) button */
+.pres-cc-btn {
+  background: none;
+  border: 1.5px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.pres-cc-btn:hover {
+  background: var(--accent);
+  color: var(--body-bg);
+}
+.pres-cc-btn.off {
+  border-color: var(--text-dimmed);
+  color: var(--text-dimmed);
+}
+.pres-cc-btn.off:hover {
+  background: var(--text-dimmed);
+  color: var(--body-bg);
+}
+
+/* === Voice loading spinner === */
+.voice-loading {
+  position: absolute;
+  top: 12px;
+  right: 60px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-voice-loading);
+}
+.voice-loading.visible { display: flex; }
+
+.voice-loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: voice-spin 0.7s linear infinite;
+}
+
+@keyframes voice-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* === Subtitle bar (dedicated area between stage and controls) === */
+.pres-subtitle-stack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 4px 20px;
+  background: var(--body-bg);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: min-height 0.3s ease, padding 0.3s ease, border-color 0.3s ease;
+}
+
+.pres-subtitle-stack.hidden {
+  min-height: 0;
+  padding: 0 20px;
+  border-color: transparent;
+}
+
+.pres-subtitle-stack.hidden .pres-subtitle {
+  display: none;
+}
+
+.pres-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 80%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pres-subtitle.visible {
+  opacity: 1;
+}
+
+.pres-subtitle.risen {
+  display: none;
+}
+
+.pres-subtitle.exiting {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* === Settings modal === */
+.settings-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: var(--z-settings-backdrop);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.settings-modal.open { display: flex; }
+
+.settings-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 400px;
+  max-width: 90vw;
+}
+
+.settings-panel h2 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.settings-panel label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  margin-top: 12px;
+}
+
+.settings-panel input[type="text"],
+.settings-panel select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--body-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.settings-panel .btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.settings-panel .btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.settings-panel .btn-primary {
+  background: var(--accent);
+  color: var(--body-bg);
+}
+.settings-panel .btn-primary:hover { background: #a5b4fc; }
+
+.settings-panel .btn-secondary {
+  background: var(--border);
+  color: var(--text-secondary);
+}
+.settings-panel .btn-secondary:hover { background: #475569; }
+
+/* === Share modal === */
+.share-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: var(--z-settings-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 440px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.share-panel h2 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.share-panel h3 {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.share-label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  margin-top: 12px;
+}
+
+.share-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--body-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.share-btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.share-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.share-url-text {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--body-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: monospace;
+  resize: none;
+  word-break: break-all;
+}
+
+.share-qr-wrap {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.share-qr-wrap canvas {
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.share-reminder {
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  color: var(--warning);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.share-import-msg {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.share-error {
+  padding: 8px 12px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid var(--error);
+  border-radius: 6px;
+  color: var(--error);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.share-success {
+  padding: 12px;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid var(--insight);
+  border-radius: 8px;
+  color: var(--insight);
+  font-size: 0.9rem;
+}
+
+.share-success-list {
+  margin: 8px 0 0 20px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.share-success-list li { margin-bottom: 2px; }
+
+/* Share button inside settings */
+.settings-share-sep {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0 12px;
+}
+
+.btn-share {
+  width: 100%;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-share:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* Reuse btn styles inside share panels */
+.share-panel .btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.share-panel .btn-primary {
+  background: var(--accent);
+  color: var(--body-bg);
+}
+.share-panel .btn-primary:hover { background: #a5b4fc; }
+.share-panel .btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+.share-panel .btn-secondary {
+  background: var(--border);
+  color: var(--text-secondary);
+}
+.share-panel .btn-secondary:hover { background: #475569; }
+
+/* === Player header: back-link === */
+.player-header .back-link {
+  color: var(--text-dimmed);
+  text-decoration: none;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* === Player header: right controls group === */
+.player-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+/* === Player header: tutor button === */
+.player-header .tutor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  background: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.player-header .tutor-btn::before {
+  content: '\1F4AC';
+  font-size: 0.85em;
+}
+.player-header .tutor-btn:hover {
+  background: rgba(129, 140, 248, 0.12);
+}

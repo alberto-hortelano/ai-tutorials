@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELBO Interactivo: Visualización del VAE</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific overrides and additions */
+        body { max-width: 1000px; }
+        .graphs-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+        }
+        .graph-container.full-width { grid-column: 1 / -1; }
+        canvas { height: 180px; }
+        canvas.tall { height: 220px; }
+        canvas.short { height: 120px; }
+        .controls {
+            background: var(--canvas); border-radius: 8px; padding: 15px; margin-top: 15px;
+        }
+        .formula { font-size: 0.9em; }
+        .highlight-box h4 { color: var(--accent); }
+        .section-num {
+            display: inline-block; padding: 3px 10px; border-radius: 4px;
+            font-size: 0.8em; font-weight: bold; margin-left: 10px;
+        }
+        .num-1 { background: rgba(100, 150, 255, 0.3); color: #6496ff; }
+        .num-2 { background: rgba(100, 255, 150, 0.3); color: #64ff96; }
+        .num-3 { background: rgba(233, 69, 96, 0.3); color: var(--accent); }
+    </style>
+</head>
+<body>
+    <h1>ELBO Interactivo</h1>
+    <p class="subtitle">Visualización de los conceptos clave del Variational Autoencoder</p>
+
+    <!-- ============================================ -->
+    <!-- SECCIÓN 1: La Brecha log p(x) vs ELBO       -->
+    <!-- ============================================ -->
+    <div class="section">
+        <h2>Sección 1: La Brecha <span class="section-num num-1">log p(x) vs ELBO</span></h2>
+        <div class="formula">
+            log p(x) = ELBO + KL( q(z) || p(z|x) )
+        </div>
+
+        <div class="graphs-row">
+            <div class="graph-container full-width">
+                <h3>Espacio latente: distribuciones sobre z</h3>
+                <canvas id="s1_latent" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background:#6496ff"></div><span>p(z) prior</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#64ff96"></div><span>p(z|x) posterior real</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#e94560"></div><span>q(z) aproximación</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="graphs-row" style="margin-top: 15px;">
+            <div class="graph-container full-width">
+                <h3>Descomposición de log p(x)</h3>
+                <canvas id="s1_bars" class="short"></canvas>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>Ajusta q(z)</h3>
+            <div class="control-group">
+                <div class="control">
+                    <label>μ_q (media de q): <span class="value" id="s1_mu_val">0.0</span></label>
+                    <input type="range" id="s1_mu" min="-3" max="5" step="0.05" value="0">
+                </div>
+                <div class="control">
+                    <label>σ_q (desviación de q): <span class="value" id="s1_sigma_val">1.00</span></label>
+                    <input type="range" id="s1_sigma" min="0.2" max="3" step="0.05" value="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h4>Insight</h4>
+            <p>Cuando q(z) se acerca a la posterior real p(z|x), la KL se reduce a cero y el ELBO coincide con log p(x). Ajusta μ_q y σ_q para ver cómo la brecha se cierra.</p>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SECCIÓN 2: Las Dos Fuerzas del ELBO          -->
+    <!-- ============================================ -->
+    <div class="section">
+        <h2>Sección 2: Las Dos Fuerzas del ELBO <span class="section-num num-2">Reconstrucción vs Regularización</span></h2>
+        <div class="formula">
+            ELBO = E<sub>q</sub>[log p(x|z)] − KL( q(z|x) || p(z) )
+        </div>
+
+        <div class="graphs-row">
+            <div class="graph-container">
+                <h3>Regularización: KL( q(z|x) || p(z) )</h3>
+                <canvas id="s2_kl" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background:#6496ff"></div><span>p(z) prior</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#e94560"></div><span>q(z|x) encoder</span></div>
+                </div>
+            </div>
+            <div class="graph-container">
+                <h3>Reconstrucción: E<sub>q</sub>[log p(x|z)]</h3>
+                <canvas id="s2_recon" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background:#64ff96"></div><span>p(x|z<sub>i</sub>) para z<sub>i</sub> ~ q</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#ff0"></div><span>x_target</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="graphs-row" style="margin-top: 15px;">
+            <div class="graph-container full-width">
+                <h3>Balance del ELBO</h3>
+                <canvas id="s2_balance" class="short"></canvas>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>Ajusta el encoder q(z|x)</h3>
+            <div class="control-group">
+                <div class="control">
+                    <label>μ_q (media del encoder): <span class="value" id="s2_mu_val">2.0</span></label>
+                    <input type="range" id="s2_mu" min="-4" max="6" step="0.05" value="2">
+                </div>
+                <div class="control">
+                    <label>σ_q (desviación del encoder): <span class="value" id="s2_sigma_val">1.00</span></label>
+                    <input type="range" id="s2_sigma" min="0.2" max="3" step="0.05" value="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h4>Insight</h4>
+            <p>Si solo optimizas reconstrucción, q puede memorizar posiciones exactas (σ→0, μ→z óptimo). Si solo optimizas KL, q = p(z) pero no reconstruye nada útil. El ELBO equilibra ambas fuerzas.</p>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SECCIÓN 3: El Truco de Reparametrización     -->
+    <!-- ============================================ -->
+    <div class="section">
+        <h2>Sección 3: El Truco de Reparametrización <span class="section-num num-3">z = μ + σ · ε</span></h2>
+        <div class="formula">
+            z = μ + σ · ε &nbsp;&nbsp; donde ε ~ N(0, 1)
+        </div>
+
+        <div class="graphs-row">
+            <div class="graph-container full-width">
+                <h3>Transformación: ε fijo → z se mueve con μ y σ</h3>
+                <canvas id="s3_reparam" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background:#6496ff"></div><span>p(ε) = N(0,1)</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#e94560"></div><span>q(z|x) = N(μ, σ²)</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#ff0; width:8px; height:8px; border-radius:50%"></div><span>muestras</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="graphs-row" style="margin-top: 15px;">
+            <div class="graph-container full-width">
+                <h3>Analogía: la diana y los dardos</h3>
+                <canvas id="s3_darts" class="tall"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-color" style="background:#6496ff"></div><span>Diana fija (ε)</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#e94560"></div><span>Diana desplazada (z)</span></div>
+                    <div class="legend-item"><div class="legend-color" style="background:#ff0; width:8px; height:8px; border-radius:50%"></div><span>dardos</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="graphs-row" style="margin-top: 15px;">
+            <div class="graph-container full-width">
+                <h3>Flujo de gradientes</h3>
+                <canvas id="s3_gradient" class="short"></canvas>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>Ajusta los parámetros</h3>
+            <div class="control-group">
+                <div class="control">
+                    <label>μ: <span class="value" id="s3_mu_val">1.0</span></label>
+                    <input type="range" id="s3_mu" min="-3" max="4" step="0.05" value="1">
+                </div>
+                <div class="control">
+                    <label>σ: <span class="value" id="s3_sigma_val">1.00</span></label>
+                    <input type="range" id="s3_sigma" min="0.2" max="3" step="0.05" value="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h4>Insight — La diana y los dardos</h4>
+            <p>Imagina que lanzas dardos a una diana fija en el origen (ε). Los impactos son aleatorios, pero una vez lanzados, <strong>no cambian nunca</strong>. Luego desplazas (μ) y escalas (σ) todos los impactos a la vez para obtener z = μ + σ·ε. Mueve los sliders: μ traslada la diana entera, σ la agranda o encoge. Los dardos de la izquierda nunca se mueven — toda la aleatoriedad está ahí, y no depende de los parámetros. Por eso los gradientes fluyen: la transformación es determinista y diferenciable.</p>
+        </div>
+    </div>
+
+    <script type="module">
+    // ==================================================================
+    // Imports from shared modules
+    // ==================================================================
+    import { setupCanvas } from './shared/canvas.js';
+    import { gaussian } from './shared/math.js';
+
+    // ==================================================================
+    // Utilidades comunes
+    // ==================================================================
+    function logGaussian(x, mu, sigma) {
+        return -0.5 * Math.log(2 * Math.PI) - Math.log(sigma) - 0.5 * ((x - mu) / sigma) ** 2;
+    }
+
+    // KL divergence between two univariate Gaussians: KL(N(mu1,s1^2) || N(mu2,s2^2))
+    function klGaussian(mu1, sigma1, mu2, sigma2) {
+        return Math.log(sigma2 / sigma1) +
+               (sigma1 * sigma1 + (mu1 - mu2) ** 2) / (2 * sigma2 * sigma2) - 0.5;
+    }
+
+    // Generic axis + draw function
+    function drawGraph(canvasId, xMin, xMax, yMax, xLabel, drawFunc) {
+        const canvas = document.getElementById(canvasId);
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        const pad = { left: 50, right: 20, top: 15, bottom: 30 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+
+        // Axes
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, h - pad.bottom);
+        ctx.lineTo(w - pad.right, h - pad.bottom);
+        ctx.moveTo(pad.left, pad.top);
+        ctx.lineTo(pad.left, h - pad.bottom);
+        ctx.stroke();
+
+        // X ticks
+        ctx.fillStyle = '#666';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        const nTicks = 6;
+        for (let i = 0; i <= nTicks; i++) {
+            const x = xMin + (i / nTicks) * (xMax - xMin);
+            const px = pad.left + (x - xMin) / (xMax - xMin) * plotW;
+            ctx.fillText(x.toFixed(1), px, h - pad.bottom + 15);
+        }
+
+        ctx.fillStyle = '#888';
+        ctx.fillText(xLabel, w / 2, h - 3);
+
+        const toX = (x) => pad.left + (x - xMin) / (xMax - xMin) * plotW;
+        const toY = (y) => (h - pad.bottom) - (y / yMax) * plotH;
+
+        drawFunc(ctx, toX, toY, xMin, xMax, yMax, w, h, pad);
+    }
+
+    function drawCurve(ctx, toX, toY, xMin, xMax, fn, color, lineWidth) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth || 2;
+        ctx.beginPath();
+        const step = (xMax - xMin) / 400;
+        for (let x = xMin; x <= xMax; x += step) {
+            const px = toX(x), py = toY(fn(x));
+            if (x === xMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+    }
+
+    function fillCurve(ctx, toX, toY, xMin, xMax, fn, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        const step = (xMax - xMin) / 400;
+        ctx.moveTo(toX(xMin), toY(0));
+        for (let x = xMin; x <= xMax; x += step) {
+            ctx.lineTo(toX(x), toY(fn(x)));
+        }
+        ctx.lineTo(toX(xMax), toY(0));
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function fillBetween(ctx, toX, toY, xMin, xMax, fnTop, fnBottom, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        const step = (xMax - xMin) / 400;
+        // Forward along fnTop
+        ctx.moveTo(toX(xMin), toY(fnTop(xMin)));
+        for (let x = xMin; x <= xMax; x += step) {
+            ctx.lineTo(toX(x), toY(fnTop(x)));
+        }
+        // Backward along fnBottom
+        for (let x = xMax; x >= xMin; x -= step) {
+            ctx.lineTo(toX(x), toY(fnBottom(x)));
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // ==================================================================
+    // SECCIÓN 1: La Brecha log p(x) vs ELBO
+    // ==================================================================
+    // Synthetic 1D model:
+    //   p(z) = N(0, 1)
+    //   p(x|z) = N(z, sigma_likelihood^2)  (likelihood centered at z)
+    //   We observe x_obs = 2.0
+    //   p(z|x) ∝ p(x|z)p(z) = N(z; posterior_mu, posterior_sigma^2)
+    //   Posterior: mu = x*sigma_z^2/(sigma_z^2+sigma_l^2), sigma^2 = sigma_z^2*sigma_l^2/(sigma_z^2+sigma_l^2)
+
+    const S1 = {
+        x_obs: 2.0,
+        sigma_l: 1.0, // likelihood std
+        mu_q: 0,
+        sigma_q: 1,
+    };
+
+    function s1_posterior() {
+        const s2z = 1, s2l = S1.sigma_l ** 2;
+        const sigma2 = (s2z * s2l) / (s2z + s2l);
+        const mu = S1.x_obs * s2z / (s2z + s2l);
+        return { mu, sigma: Math.sqrt(sigma2) };
+    }
+
+    function s1_logpx() {
+        // log p(x) = log N(x_obs; 0, sigma_z^2 + sigma_l^2)
+        const totalVar = 1 + S1.sigma_l ** 2;
+        return logGaussian(S1.x_obs, 0, Math.sqrt(totalVar));
+    }
+
+    function s1_elbo() {
+        // ELBO = E_q[log p(x|z)] + E_q[log p(z)] - E_q[log q(z)]
+        // = E_q[log p(x|z)] - KL(q || p(z))
+        // E_q[log p(x|z)] = E_q[log N(x_obs; z, sigma_l^2)]
+        //   = -0.5*log(2pi) - log(sigma_l) - (1/(2*sigma_l^2)) * E_q[(x_obs - z)^2]
+        //   E_q[(x_obs-z)^2] = (x_obs - mu_q)^2 + sigma_q^2
+        const eq_sq = (S1.x_obs - S1.mu_q) ** 2 + S1.sigma_q ** 2;
+        const recon = -0.5 * Math.log(2 * Math.PI) - Math.log(S1.sigma_l) - eq_sq / (2 * S1.sigma_l ** 2);
+        const kl_prior = klGaussian(S1.mu_q, S1.sigma_q, 0, 1);
+        return recon - kl_prior;
+    }
+
+    function s1_klPosterior() {
+        const post = s1_posterior();
+        return klGaussian(S1.mu_q, S1.sigma_q, post.mu, post.sigma);
+    }
+
+    function drawS1Latent() {
+        const post = s1_posterior();
+        const allMaxes = [
+            gaussian(0, 0, 1),
+            gaussian(post.mu, post.mu, post.sigma),
+            gaussian(S1.mu_q, S1.mu_q, S1.sigma_q)
+        ];
+        const yMax = Math.max(...allMaxes) * 1.2;
+
+        drawGraph('s1_latent', -4, 6, yMax, 'z', (ctx, toX, toY, xMin, xMax) => {
+            const prior = x => gaussian(x, 0, 1);
+            const posterior = x => gaussian(x, post.mu, post.sigma);
+            const qz = x => gaussian(x, S1.mu_q, S1.sigma_q);
+
+            // Shaded area between q and posterior (representing KL mismatch)
+            fillBetween(ctx, toX, toY, xMin, xMax,
+                x => Math.max(qz(x), posterior(x)),
+                x => Math.min(qz(x), posterior(x)),
+                'rgba(233, 69, 96, 0.15)'
+            );
+
+            // Draw curves
+            fillCurve(ctx, toX, toY, xMin, xMax, prior, 'rgba(100, 150, 255, 0.1)');
+            drawCurve(ctx, toX, toY, xMin, xMax, prior, '#6496ff', 2);
+            drawCurve(ctx, toX, toY, xMin, xMax, posterior, '#64ff96', 2);
+            drawCurve(ctx, toX, toY, xMin, xMax, qz, '#e94560', 2.5);
+
+            // Labels
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#6496ff';
+            ctx.fillText('p(z)', toX(-3.5), toY(yMax * 0.9));
+            ctx.fillStyle = '#64ff96';
+            ctx.fillText('p(z|x)', toX(post.mu + post.sigma * 1.5), toY(gaussian(post.mu + post.sigma * 1.5, post.mu, post.sigma)) - 5);
+            ctx.fillStyle = '#e94560';
+            ctx.fillText('q(z)', toX(S1.mu_q + S1.sigma_q * 1.5), toY(gaussian(S1.mu_q + S1.sigma_q * 1.5, S1.mu_q, S1.sigma_q)) - 5);
+
+            // Values
+            ctx.fillStyle = '#888';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            const kl = s1_klPosterior();
+            ctx.fillText(`KL(q || p(z|x)) = ${kl.toFixed(3)}`, toX(xMax) - 5, toY(yMax * 0.95));
+        });
+    }
+
+    function drawS1Bars() {
+        const canvas = document.getElementById('s1_bars');
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        const logpx = s1_logpx();
+        const elbo = s1_elbo();
+        const kl = s1_klPosterior();
+
+        // Bar chart: horizontal bars
+        const pad = { left: 120, right: 30, top: 15, bottom: 15 };
+        const barH = 22;
+        const gap = 12;
+
+        // Scale: logpx is always the biggest (it's the upper bound reference)
+        // But ELBO can be very negative, so we need a good range
+        const minVal = Math.min(elbo, logpx) - 0.5;
+        const maxVal = Math.max(0.5, logpx + 0.5);
+        const scale = (v) => pad.left + ((v - minVal) / (maxVal - minVal)) * (w - pad.left - pad.right);
+        const zeroX = scale(0);
+
+        // log p(x) bar
+        let y = pad.top;
+        ctx.fillStyle = '#888';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('log p(x)', pad.left - 8, y + barH / 2 + 4);
+        ctx.fillStyle = 'rgba(100, 150, 255, 0.6)';
+        const lpxW = scale(logpx) - zeroX;
+        if (lpxW >= 0) {
+            ctx.fillRect(zeroX, y, lpxW, barH);
+        } else {
+            ctx.fillRect(scale(logpx), y, -lpxW, barH);
+        }
+        ctx.fillStyle = '#6496ff';
+        ctx.textAlign = 'left';
+        ctx.fillText(logpx.toFixed(3), scale(logpx) + 5, y + barH / 2 + 4);
+
+        // ELBO bar
+        y += barH + gap;
+        ctx.fillStyle = '#888';
+        ctx.textAlign = 'right';
+        ctx.fillText('ELBO', pad.left - 8, y + barH / 2 + 4);
+        ctx.fillStyle = 'rgba(100, 255, 150, 0.6)';
+        const elboW = scale(elbo) - zeroX;
+        if (elboW >= 0) {
+            ctx.fillRect(zeroX, y, elboW, barH);
+        } else {
+            ctx.fillRect(scale(elbo), y, -elboW, barH);
+        }
+        ctx.fillStyle = '#64ff96';
+        ctx.textAlign = 'left';
+        ctx.fillText(elbo.toFixed(3), scale(elbo) + 5, y + barH / 2 + 4);
+
+        // KL gap bracket
+        if (Math.abs(logpx - elbo) > 0.01) {
+            const bracketX = Math.max(scale(elbo), scale(logpx)) + 50;
+            const y1 = pad.top + barH / 2;
+            const y2 = pad.top + barH + gap + barH / 2;
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            // Vertical line from log p(x) bar end to ELBO bar end
+            const lpxEnd = scale(logpx);
+            const elboEnd = scale(elbo);
+            ctx.beginPath();
+            ctx.moveTo(lpxEnd, y1);
+            ctx.lineTo(lpxEnd, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Gap shading
+            if (lpxEnd > elboEnd) {
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.2)';
+                ctx.fillRect(elboEnd, pad.top + barH + gap, lpxEnd - elboEnd, barH);
+            }
+
+            // KL label
+            ctx.fillStyle = '#e94560';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            const midX = (lpxEnd + elboEnd) / 2;
+            ctx.fillText(`← KL = ${kl.toFixed(3)} →`, midX, pad.top + barH + gap - 2);
+        }
+
+        // Zero line
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(zeroX, pad.top - 5);
+        ctx.lineTo(zeroX, h - pad.bottom + 5);
+        ctx.stroke();
+        ctx.fillStyle = '#555';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('0', zeroX, h - 3);
+    }
+
+    // ==================================================================
+    // SECCIÓN 2: Las Dos Fuerzas del ELBO
+    // ==================================================================
+    const S2 = {
+        mu_q: 2.0,
+        sigma_q: 1.0,
+        x_target: 2.0,
+        sigma_decoder: 0.8, // p(x|z) = N(z, sigma_decoder^2)
+        numSamples: 8,
+        zSamples: [] // fixed epsilon samples, transformed to z
+    };
+
+    // Generate fixed epsilon samples for S2
+    function s2_initSamples() {
+        // Use deterministic "random" for stability
+        S2.epsilons = [];
+        for (let i = 0; i < S2.numSamples; i++) {
+            // Box-Muller with fixed seed-like values
+            const u1 = (i + 1) / (S2.numSamples + 1);
+            const u2 = (i * 7 + 3) / (S2.numSamples * 7 + 7);
+            S2.epsilons.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2));
+        }
+    }
+    s2_initSamples();
+
+    function s2_getZSamples() {
+        return S2.epsilons.map(e => S2.mu_q + S2.sigma_q * e);
+    }
+
+    function drawS2KL() {
+        const yMax = Math.max(gaussian(0, 0, 1), gaussian(S2.mu_q, S2.mu_q, S2.sigma_q)) * 1.3;
+
+        drawGraph('s2_kl', -4, 6, yMax, 'z', (ctx, toX, toY, xMin, xMax) => {
+            const prior = x => gaussian(x, 0, 1);
+            const qz = x => gaussian(x, S2.mu_q, S2.sigma_q);
+
+            // Shaded KL area
+            fillBetween(ctx, toX, toY, xMin, xMax,
+                x => Math.max(qz(x), prior(x)),
+                x => Math.min(qz(x), prior(x)),
+                'rgba(233, 69, 96, 0.15)'
+            );
+
+            fillCurve(ctx, toX, toY, xMin, xMax, prior, 'rgba(100, 150, 255, 0.1)');
+            drawCurve(ctx, toX, toY, xMin, xMax, prior, '#6496ff', 2);
+            drawCurve(ctx, toX, toY, xMin, xMax, qz, '#e94560', 2.5);
+
+            // KL value
+            const kl = klGaussian(S2.mu_q, S2.sigma_q, 0, 1);
+            ctx.fillStyle = '#e94560';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`KL = ${kl.toFixed(3)}`, toX((xMin + xMax) / 2), toY(yMax * 0.85));
+        });
+    }
+
+    function drawS2Recon() {
+        const zSamples = s2_getZSamples();
+        // yMax for p(x|z) curves
+        const peakHeight = gaussian(0, 0, S2.sigma_decoder);
+        const yMax = peakHeight * 1.3;
+
+        drawGraph('s2_recon', -3, 7, yMax, 'x', (ctx, toX, toY, xMin, xMax) => {
+            // Draw individual p(x|z_i) for each sample
+            zSamples.forEach((zi, idx) => {
+                const pxz = x => gaussian(x, zi, S2.sigma_decoder);
+                const alpha = 0.5;
+                ctx.globalAlpha = alpha;
+                drawCurve(ctx, toX, toY, xMin, xMax, pxz, '#64ff96', 1.5);
+                ctx.globalAlpha = 1.0;
+            });
+
+            // Target x line
+            ctx.strokeStyle = '#ff0';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(toX(S2.x_target), toY(0));
+            ctx.lineTo(toX(S2.x_target), toY(yMax * 0.95));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ff0';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`x = ${S2.x_target.toFixed(1)}`, toX(S2.x_target), toY(yMax * 0.95) - 5);
+
+            // Reconstruction term value
+            let recon = 0;
+            zSamples.forEach(zi => {
+                recon += logGaussian(S2.x_target, zi, S2.sigma_decoder);
+            });
+            recon /= zSamples.length;
+
+            ctx.fillStyle = '#64ff96';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`E[log p(x|z)] ≈ ${recon.toFixed(3)}`, toX(xMax) - 5, toY(yMax * 0.85));
+        });
+    }
+
+    function drawS2Balance() {
+        const canvas = document.getElementById('s2_balance');
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        // Compute values
+        const zSamples = s2_getZSamples();
+        let recon = 0;
+        zSamples.forEach(zi => { recon += logGaussian(S2.x_target, zi, S2.sigma_decoder); });
+        recon /= zSamples.length;
+        const kl = klGaussian(S2.mu_q, S2.sigma_q, 0, 1);
+        const elbo = recon - kl;
+
+        const pad = { left: 140, right: 30, top: 10, bottom: 10 };
+        const barH = 18;
+        const gap = 8;
+
+        // Scale to fit all values
+        const absMax = Math.max(Math.abs(recon), Math.abs(kl), Math.abs(elbo), 2);
+        const scale = (v) => pad.left + ((v + absMax) / (2 * absMax)) * (w - pad.left - pad.right);
+        const zeroX = scale(0);
+
+        // Reconstruction bar
+        let y = pad.top;
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('Reconstrucción', pad.left - 8, y + barH / 2 + 4);
+        ctx.fillStyle = 'rgba(100, 255, 150, 0.6)';
+        const rW = scale(recon) - zeroX;
+        if (rW >= 0) ctx.fillRect(zeroX, y, rW, barH);
+        else ctx.fillRect(scale(recon), y, -rW, barH);
+        ctx.fillStyle = '#64ff96';
+        ctx.textAlign = 'left';
+        ctx.fillText(recon.toFixed(2), scale(recon) + 4, y + barH / 2 + 4);
+
+        // -KL bar
+        y += barH + gap;
+        ctx.fillStyle = '#888';
+        ctx.textAlign = 'right';
+        ctx.fillText('−KL(q || p(z))', pad.left - 8, y + barH / 2 + 4);
+        ctx.fillStyle = 'rgba(233, 69, 96, 0.6)';
+        const klW = scale(-kl) - zeroX;
+        if (klW >= 0) ctx.fillRect(zeroX, y, klW, barH);
+        else ctx.fillRect(scale(-kl), y, -klW, barH);
+        ctx.fillStyle = '#e94560';
+        ctx.textAlign = 'left';
+        ctx.fillText((-kl).toFixed(2), scale(-kl) + 4, y + barH / 2 + 4);
+
+        // ELBO bar
+        y += barH + gap;
+        ctx.fillStyle = '#888';
+        ctx.textAlign = 'right';
+        ctx.fillText('ELBO', pad.left - 8, y + barH / 2 + 4);
+        const elboColor = elbo >= 0 ? 'rgba(255, 255, 100, 0.6)' : 'rgba(255, 255, 100, 0.4)';
+        ctx.fillStyle = elboColor;
+        const eW = scale(elbo) - zeroX;
+        if (eW >= 0) ctx.fillRect(zeroX, y, eW, barH);
+        else ctx.fillRect(scale(elbo), y, -eW, barH);
+        ctx.fillStyle = '#ff0';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(elbo.toFixed(2), scale(elbo) + 4, y + barH / 2 + 4);
+
+        // Zero line
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(zeroX, 0);
+        ctx.lineTo(zeroX, h);
+        ctx.stroke();
+    }
+
+    // ==================================================================
+    // SECCIÓN 3: Truco de Reparametrización
+    // ==================================================================
+    const S3 = {
+        mu: 1.0,
+        sigma: 1.0,
+        numSamples: 12,
+        epsilons: [],
+        animPhase: 0
+    };
+
+    function s3_initSamples() {
+        S3.epsilons = [];
+        for (let i = 0; i < S3.numSamples; i++) {
+            const u1 = (i + 1) / (S3.numSamples + 1);
+            const u2 = (i * 11 + 5) / (S3.numSamples * 11 + 11);
+            S3.epsilons.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2));
+        }
+    }
+    s3_initSamples();
+
+    // 2D epsilon samples for the dart/target analogy
+    S3.dartEps2D = [];
+    function s3_initDarts() {
+        S3.dartEps2D = [];
+        const n = 15;
+        for (let i = 0; i < n; i++) {
+            const u1 = Math.max((i + 1) / (n + 1), 0.01);
+            const u2 = ((i * 7 + 3) % (n + 2)) / (n + 2);
+            const u3 = Math.max(((i * 5 + 1) % (n + 1)) / (n + 1), 0.01);
+            const u4 = ((i * 3 + 9) % (n + 3)) / (n + 3);
+            const ex = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+            const ey = Math.sqrt(-2 * Math.log(u3)) * Math.cos(2 * Math.PI * u4);
+            S3.dartEps2D.push({ x: ex, y: ey });
+        }
+    }
+    s3_initDarts();
+
+    function drawS3Reparam() {
+        const canvas = document.getElementById('s3_reparam');
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        const pad = { left: 20, right: 20, top: 15, bottom: 30 };
+        const midX = w / 2;
+        const halfW = (w - pad.left - pad.right) / 2 - 30; // each side's width
+        const plotH = h - pad.top - pad.bottom;
+
+        // LEFT SIDE: epsilon space
+        const epsMin = -3.5, epsMax = 3.5;
+        const epsYMax = gaussian(0, 0, 1) * 1.3;
+        const leftOriginX = pad.left;
+
+        const toEpsX = (x) => leftOriginX + ((x - epsMin) / (epsMax - epsMin)) * halfW;
+        const toEpsY = (y) => (h - pad.bottom) - (y / epsYMax) * plotH;
+
+        // Axis for epsilon
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(leftOriginX, h - pad.bottom);
+        ctx.lineTo(leftOriginX + halfW, h - pad.bottom);
+        ctx.stroke();
+
+        // Epsilon curve
+        const step = 0.05;
+        ctx.strokeStyle = '#6496ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = epsMin; x <= epsMax; x += step) {
+            const px = toEpsX(x), py = toEpsY(gaussian(x, 0, 1));
+            if (x === epsMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // Fill epsilon
+        ctx.fillStyle = 'rgba(100, 150, 255, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(toEpsX(epsMin), toEpsY(0));
+        for (let x = epsMin; x <= epsMax; x += step) {
+            ctx.lineTo(toEpsX(x), toEpsY(gaussian(x, 0, 1)));
+        }
+        ctx.lineTo(toEpsX(epsMax), toEpsY(0));
+        ctx.closePath();
+        ctx.fill();
+
+        // Epsilon label
+        ctx.fillStyle = '#6496ff';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('p(ε) = N(0,1)', leftOriginX + halfW / 2, pad.top + 5);
+        ctx.fillStyle = '#666';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('ε', leftOriginX + halfW / 2, h - 5);
+
+        // Epsilon ticks
+        ctx.fillStyle = '#666';
+        ctx.font = '9px sans-serif';
+        for (let v = -3; v <= 3; v++) {
+            ctx.fillText(v.toString(), toEpsX(v), h - pad.bottom + 12);
+        }
+
+        // Epsilon sample dots
+        const dotRadius = 5;
+        S3.epsilons.forEach(eps => {
+            const px = toEpsX(eps);
+            const py = toEpsY(0) + 3; // slightly below the axis for visibility
+            ctx.beginPath();
+            ctx.arc(px, py - 15, dotRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.fill();
+            ctx.strokeStyle = '#ff0';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        // RIGHT SIDE: z space
+        const zMin = -4, zMax = 7;
+        const qzPeak = gaussian(S3.mu, S3.mu, S3.sigma);
+        const zYMax = Math.max(qzPeak, gaussian(0, 0, 1)) * 1.3;
+        const rightOriginX = midX + 30;
+
+        const toZX = (x) => rightOriginX + ((x - zMin) / (zMax - zMin)) * halfW;
+        const toZY = (y) => (h - pad.bottom) - (y / zYMax) * plotH;
+
+        // Axis for z
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(rightOriginX, h - pad.bottom);
+        ctx.lineTo(rightOriginX + halfW, h - pad.bottom);
+        ctx.stroke();
+
+        // q(z) curve
+        ctx.strokeStyle = '#e94560';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = zMin; x <= zMax; x += step) {
+            const px = toZX(x), py = toZY(gaussian(x, S3.mu, S3.sigma));
+            if (x === zMin) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // Fill q(z)
+        ctx.fillStyle = 'rgba(233, 69, 96, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(toZX(zMin), toZY(0));
+        for (let x = zMin; x <= zMax; x += step) {
+            ctx.lineTo(toZX(x), toZY(gaussian(x, S3.mu, S3.sigma)));
+        }
+        ctx.lineTo(toZX(zMax), toZY(0));
+        ctx.closePath();
+        ctx.fill();
+
+        // q(z) label
+        ctx.fillStyle = '#e94560';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`q(z) = N(${S3.mu.toFixed(1)}, ${S3.sigma.toFixed(1)}²)`, rightOriginX + halfW / 2, pad.top + 5);
+        ctx.fillStyle = '#666';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('z', rightOriginX + halfW / 2, h - 5);
+
+        // Z ticks
+        ctx.fillStyle = '#666';
+        ctx.font = '9px sans-serif';
+        for (let v = -3; v <= 6; v += 1) {
+            ctx.fillText(v.toString(), toZX(v), h - pad.bottom + 12);
+        }
+
+        // Z sample dots (transformed from epsilon)
+        S3.epsilons.forEach(eps => {
+            const z = S3.mu + S3.sigma * eps;
+            if (z < zMin || z > zMax) return;
+            const px = toZX(z);
+            ctx.beginPath();
+            ctx.arc(px, toZY(0) - 15, dotRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.fill();
+            ctx.strokeStyle = '#ff0';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        // ARROWS connecting epsilon dots to z dots
+        S3.epsilons.forEach(eps => {
+            const z = S3.mu + S3.sigma * eps;
+            if (z < zMin || z > zMax) return;
+            const fromX = toEpsX(eps);
+            const fromY = toEpsY(0) - 15;
+            const toXPos = toZX(z);
+            const toYPos = toZY(0) - 15;
+
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.moveTo(fromX + dotRadius + 2, fromY);
+            ctx.lineTo(toXPos - dotRadius - 2, toYPos);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+
+        // Central arrow/label
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('z = μ + σ·ε', midX, h / 2 - 5);
+
+        // Big arrow
+        const arrowY = h / 2 + 12;
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(midX - 40, arrowY);
+        ctx.lineTo(midX + 35, arrowY);
+        ctx.stroke();
+        // Arrowhead
+        ctx.beginPath();
+        ctx.moveTo(midX + 35, arrowY);
+        ctx.lineTo(midX + 28, arrowY - 5);
+        ctx.lineTo(midX + 28, arrowY + 5);
+        ctx.closePath();
+        ctx.fillStyle = '#aaa';
+        ctx.fill();
+    }
+
+    function drawS3Darts() {
+        const canvas = document.getElementById('s3_darts');
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        const gap = 60;
+        const panelW = (w - gap) / 2;
+        const centerY = 20 + (h - 44) / 2;
+
+        const leftCX = panelW / 2;
+        const rightCXBase = panelW + gap + panelW / 2;
+
+        // Visual scale: 2.5 std devs fit within the target radius
+        const targetR = Math.min(panelW, h - 44) * 0.4;
+        const pxPerUnit = targetR / 2.5;
+
+        // --- Helper: draw concentric target rings ---
+        function drawTarget(cx, cy, ringScale, color) {
+            [3, 2, 1].forEach(function(r, i) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * pxPerUnit * ringScale, 0, Math.PI * 2);
+                ctx.strokeStyle = color;
+                ctx.globalAlpha = 0.12 + i * 0.08;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            });
+            // Center crosshair
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy);
+            ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // --- Helper: draw a dart dot ---
+        function drawDart(px, py) {
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.85)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(200, 200, 0, 0.9)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // ========= LEFT: ε space (fixed) =========
+        drawTarget(leftCX, centerY, 1, '#6496ff');
+
+        var leftDarts = [];
+        S3.dartEps2D.forEach(function(e) {
+            var px = leftCX + e.x * pxPerUnit;
+            var py = centerY - e.y * pxPerUnit;
+            drawDart(px, py);
+            leftDarts.push({ px: px, py: py });
+        });
+
+        // Label
+        ctx.fillStyle = '#6496ff';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Diana fija (ε)', leftCX, 14);
+        ctx.fillStyle = '#666';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('ε ~ N(0,1) — nunca cambia', leftCX, h - 4);
+
+        // ========= RIGHT: z space (moves with μ, scales with σ) =========
+        var maxShiftPx = panelW * 0.35;
+        var muPx = S3.mu * pxPerUnit;
+        var clampedMuPx = Math.max(-maxShiftPx, Math.min(maxShiftPx, muPx));
+        var rightCX = rightCXBase + clampedMuPx;
+
+        drawTarget(rightCX, centerY, S3.sigma, '#e94560');
+
+        var rightDarts = [];
+        S3.dartEps2D.forEach(function(e) {
+            var px = rightCX + e.x * pxPerUnit * S3.sigma;
+            var py = centerY - e.y * pxPerUnit * S3.sigma;
+            drawDart(px, py);
+            rightDarts.push({ px: px, py: py });
+        });
+
+        // Label
+        ctx.fillStyle = '#e94560';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Diana desplazada (z)', rightCXBase, 14);
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('z = ' + S3.mu.toFixed(1) + ' + ' + S3.sigma.toFixed(1) + '\u00B7\u03B5', rightCXBase, h - 4);
+
+        // ========= CONNECTING ARROWS =========
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.12)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        for (var i = 0; i < leftDarts.length; i++) {
+            ctx.beginPath();
+            ctx.moveTo(leftDarts[i].px + 5, leftDarts[i].py);
+            ctx.lineTo(rightDarts[i].px - 5, rightDarts[i].py);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // ========= CENTER ARROW =========
+        var arrowCX = panelW + gap / 2;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('z = \u03BC + \u03C3\u00B7\u03B5', arrowCX, centerY - 12);
+
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(arrowCX - 22, centerY);
+        ctx.lineTo(arrowCX + 17, centerY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowCX + 17, centerY);
+        ctx.lineTo(arrowCX + 10, centerY - 4);
+        ctx.lineTo(arrowCX + 10, centerY + 4);
+        ctx.closePath();
+        ctx.fillStyle = '#aaa';
+        ctx.fill();
+    }
+
+    function drawS3Gradient() {
+        const canvas = document.getElementById('s3_gradient');
+        const { ctx, w, h } = setupCanvas(canvas);
+
+        ctx.fillStyle = '#0f0f23';
+        ctx.fillRect(0, 0, w, h);
+
+        // Flow diagram: ε (fijo) ---> z = μ + σε ---> ELBO
+        // With gradient arrows showing flow through μ and σ
+
+        const midY = h / 2;
+        const boxH = 30;
+        const boxRadius = 6;
+
+        // Node positions
+        const nodes = [
+            { x: w * 0.12, label: 'ε ~ N(0,1)', sub: '(fijo)', color: '#6496ff', bg: 'rgba(100,150,255,0.2)' },
+            { x: w * 0.42, label: 'z = μ + σ·ε', sub: '(determinista)', color: '#fff', bg: 'rgba(255,255,255,0.1)' },
+            { x: w * 0.72, label: 'ELBO(θ, φ)', sub: '', color: '#64ff96', bg: 'rgba(100,255,150,0.2)' }
+        ];
+
+        // Param nodes (μ, σ) feeding into z
+        const paramNodes = [
+            { x: w * 0.28, y: midY - 38, label: 'μ', color: '#e94560' },
+            { x: w * 0.56, y: midY - 38, label: 'σ', color: '#e94560' }
+        ];
+
+        // Draw main boxes
+        nodes.forEach(n => {
+            const boxW = 130;
+            const bx = n.x - boxW / 2;
+            const by = midY - boxH / 2;
+
+            // Box
+            ctx.fillStyle = n.bg;
+            ctx.strokeStyle = n.color;
+            ctx.lineWidth = 1.5;
+            // Rounded rect (manual for compatibility)
+            ctx.beginPath();
+            ctx.moveTo(bx + boxRadius, by);
+            ctx.lineTo(bx + boxW - boxRadius, by);
+            ctx.quadraticCurveTo(bx + boxW, by, bx + boxW, by + boxRadius);
+            ctx.lineTo(bx + boxW, by + boxH - boxRadius);
+            ctx.quadraticCurveTo(bx + boxW, by + boxH, bx + boxW - boxRadius, by + boxH);
+            ctx.lineTo(bx + boxRadius, by + boxH);
+            ctx.quadraticCurveTo(bx, by + boxH, bx, by + boxH - boxRadius);
+            ctx.lineTo(bx, by + boxRadius);
+            ctx.quadraticCurveTo(bx, by, bx + boxRadius, by);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = n.color;
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(n.label, n.x, midY + 4);
+
+            // Sub label
+            if (n.sub) {
+                ctx.fillStyle = '#888';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(n.sub, n.x, midY + boxH / 2 + 14);
+            }
+        });
+
+        // Arrows between main nodes
+        const arrowPairs = [[0, 1], [1, 2]];
+        arrowPairs.forEach(([i, j]) => {
+            const fromX = nodes[i].x + 65 + 5;
+            const toX = nodes[j].x - 65 - 5;
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(fromX, midY);
+            ctx.lineTo(toX - 6, midY);
+            ctx.stroke();
+            // Arrowhead
+            ctx.beginPath();
+            ctx.moveTo(toX - 6, midY);
+            ctx.lineTo(toX - 12, midY - 4);
+            ctx.lineTo(toX - 12, midY + 4);
+            ctx.closePath();
+            ctx.fillStyle = '#666';
+            ctx.fill();
+        });
+
+        // Param nodes
+        paramNodes.forEach(p => {
+            const r = 15;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.label, p.x, p.y + 5);
+
+            // Arrow down to z node
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y + r + 2);
+            ctx.lineTo(p.x, midY - boxH / 2 - 3);
+            ctx.stroke();
+            // Arrowhead
+            const ay = midY - boxH / 2 - 3;
+            ctx.beginPath();
+            ctx.moveTo(p.x, ay);
+            ctx.lineTo(p.x - 4, ay - 6);
+            ctx.lineTo(p.x + 4, ay - 6);
+            ctx.closePath();
+            ctx.fillStyle = '#e94560';
+            ctx.fill();
+        });
+
+        // Gradient flow label
+        ctx.fillStyle = '#e94560';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('∂ELBO/∂μ ✓', w * 0.28, midY + boxH / 2 + 28);
+        ctx.fillText('∂ELBO/∂σ ✓', w * 0.56, midY + boxH / 2 + 28);
+
+        // No gradient through epsilon
+        ctx.fillStyle = '#666';
+        ctx.fillText('∂/∂ε: no se necesita', w * 0.12, midY + boxH / 2 + 28);
+
+        // "Gradientes" label at top
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Los gradientes fluyen por μ y σ (líneas rojas), no por ε', 10, 12);
+    }
+
+    // ==================================================================
+    // Controls and initialization
+    // ==================================================================
+    function setupSection1() {
+        const muSlider = document.getElementById('s1_mu');
+        const sigmaSlider = document.getElementById('s1_sigma');
+        const muVal = document.getElementById('s1_mu_val');
+        const sigmaVal = document.getElementById('s1_sigma_val');
+
+        function update() {
+            S1.mu_q = parseFloat(muSlider.value);
+            S1.sigma_q = parseFloat(sigmaSlider.value);
+            muVal.textContent = S1.mu_q.toFixed(2);
+            sigmaVal.textContent = S1.sigma_q.toFixed(2);
+            drawS1Latent();
+            drawS1Bars();
+        }
+
+        muSlider.addEventListener('input', update);
+        sigmaSlider.addEventListener('input', update);
+    }
+
+    function setupSection2() {
+        const muSlider = document.getElementById('s2_mu');
+        const sigmaSlider = document.getElementById('s2_sigma');
+        const muVal = document.getElementById('s2_mu_val');
+        const sigmaVal = document.getElementById('s2_sigma_val');
+
+        function update() {
+            S2.mu_q = parseFloat(muSlider.value);
+            S2.sigma_q = parseFloat(sigmaSlider.value);
+            muVal.textContent = S2.mu_q.toFixed(2);
+            sigmaVal.textContent = S2.sigma_q.toFixed(2);
+            drawS2KL();
+            drawS2Recon();
+            drawS2Balance();
+        }
+
+        muSlider.addEventListener('input', update);
+        sigmaSlider.addEventListener('input', update);
+    }
+
+    function setupSection3() {
+        const muSlider = document.getElementById('s3_mu');
+        const sigmaSlider = document.getElementById('s3_sigma');
+        const muVal = document.getElementById('s3_mu_val');
+        const sigmaVal = document.getElementById('s3_sigma_val');
+
+        function update() {
+            S3.mu = parseFloat(muSlider.value);
+            S3.sigma = parseFloat(sigmaSlider.value);
+            muVal.textContent = S3.mu.toFixed(2);
+            sigmaVal.textContent = S3.sigma.toFixed(2);
+            drawS3Reparam();
+            drawS3Darts();
+            drawS3Gradient();
+        }
+
+        muSlider.addEventListener('input', update);
+        sigmaSlider.addEventListener('input', update);
+    }
+
+    function drawAll() {
+        drawS1Latent();
+        drawS1Bars();
+        drawS2KL();
+        drawS2Recon();
+        drawS2Balance();
+        drawS3Reparam();
+        drawS3Darts();
+        drawS3Gradient();
+    }
+
+    window.addEventListener('load', () => {
+        setupSection1();
+        setupSection2();
+        setupSection3();
+
+        // Set initial slider display values
+        const post = s1_posterior();
+        document.getElementById('s1_mu').value = post.mu.toFixed(2);
+        document.getElementById('s1_sigma').value = post.sigma.toFixed(2);
+        S1.mu_q = post.mu;
+        S1.sigma_q = post.sigma;
+        document.getElementById('s1_mu_val').textContent = post.mu.toFixed(2);
+        document.getElementById('s1_sigma_val').textContent = post.sigma.toFixed(2);
+
+        drawAll();
+    });
+
+    window.addEventListener('resize', drawAll);
+    </script>
+</body>
+</html>

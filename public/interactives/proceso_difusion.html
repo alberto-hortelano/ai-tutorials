@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proceso de Difusión: Forward (Ruido) y Reverse (Denoising)</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific styles */
+        h1 { font-size: 1.5em; }
+        .subtitle { margin-bottom: 24px; }
+        .canvas-wrapper {
+            background: var(--canvas);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 16px;
+        }
+        canvas { cursor: default; }
+        #mainCanvas { height: 400px; }
+        #timelineCanvas { height: 50px; cursor: pointer; }
+
+        /* Controls overrides */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            background: none;
+            padding: 0;
+            border-radius: 0;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        select {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--canvas);
+            color: #fff;
+            font-size: 0.85em;
+        }
+        input[type="range"] { width: 120px; }
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        button:hover {
+            background: #1a2a50;
+        }
+        .value { min-width: 30px; text-align: center; }
+
+        /* Info panel */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .info-card {
+            background: var(--canvas);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .info-card .info-label {
+            font-size: 0.75em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .info-card .info-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Formula overrides */
+        .formula-box { font-size: 0.9em; margin-bottom: 16px; }
+        .formula-box .formula-static {
+            color: var(--text-muted);
+            font-size: 0.8em;
+            margin-bottom: 6px;
+        }
+        .formula-box .formula-values { color: var(--accent); }
+        .formula-box .highlight { color: #6496ff; font-weight: bold; }
+        .formula-box .highlight-green { color: #64ff96; font-weight: bold; }
+
+        /* Insight box */
+        .insight-box {
+            background: rgba(233, 69, 96, 0.1);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            border-radius: 8px;
+            padding: 14px 18px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .insight-box .insight-title {
+            color: var(--accent);
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 0.85em;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            h1 { font-size: 1.2em; }
+            .controls { gap: 8px; }
+            input[type="range"] { width: 80px; }
+            button { padding: 6px 10px; font-size: 0.8em; }
+            .info-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Proceso de Difusion: Forward (Ruido) y Reverse (Denoising)</h1>
+    <p class="subtitle">Visualizacion interactiva de como los modelos de difusion destruyen y reconstruyen estructura</p>
+
+    <div class="section">
+        <!-- Main canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <!-- Timeline -->
+        <div class="canvas-wrapper">
+            <canvas id="timelineCanvas"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label>Forma:</label>
+                <select id="shapeSelect">
+                    <option value="moons">Dos lunas</option>
+                    <option value="spiral">Espiral</option>
+                    <option value="ring">Anillo</option>
+                </select>
+            </div>
+            <button id="btnForward">Animar Forward</button>
+            <button id="btnReverse">Animar Reverse</button>
+            <div class="control-group">
+                <label>Velocidad:</label>
+                <input type="range" id="speedSlider" min="1" max="10" value="5">
+                <span class="value" id="speedValue">5</span>
+            </div>
+        </div>
+
+        <!-- Timestep slider -->
+        <div class="controls">
+            <div class="control-group" style="width:100%; justify-content: center;">
+                <label>Paso temporal (t):</label>
+                <input type="range" id="timestepSlider" min="0" max="50" value="0" style="width: 400px; max-width: 70%;">
+                <span class="value" id="timestepValue" style="min-width: 50px;">0 / 50</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info display -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="info-label">Paso temporal</div>
+            <div class="info-value" id="infoTimestep" style="color: #6496ff;">t = 0 / 50</div>
+        </div>
+        <div class="info-card">
+            <div class="info-label">Senal restante (alpha_bar_t)</div>
+            <div class="info-value" id="infoAlphaBar" style="color: #64ff96;">1.0000</div>
+        </div>
+        <div class="info-card">
+            <div class="info-label">Ruido anadido (1 - alpha_bar_t)</div>
+            <div class="info-value" id="infoNoise" style="color: #e94560;">0.0000</div>
+        </div>
+        <div class="info-card">
+            <div class="info-label">SNR (dB)</div>
+            <div class="info-value" id="infoSNR" style="color: #ffb347;">+inf</div>
+        </div>
+    </div>
+
+    <!-- Formula display -->
+    <div class="formula-box">
+        <div class="formula-static">Formula del proceso forward (forma cerrada):</div>
+        <div>
+            x_t = <span class="highlight" id="fSqrtAlpha">1.0000</span> * x_0 + <span class="highlight-green" id="fSqrtOneMinusAlpha">0.0000</span> * epsilon
+        </div>
+        <div class="formula-values" id="formulaNote" style="margin-top: 6px; font-size: 0.8em;"></div>
+    </div>
+
+    <!-- Insight box -->
+    <div class="insight-box">
+        <div class="insight-title">Interpretacion</div>
+        <div id="insightText">t=0: Datos originales. Sin ruido anadido.</div>
+    </div>
+
+    <div class="insight-box" style="margin-top: 12px; background: rgba(100,150,255,0.1); border-color: rgba(100,150,255,0.3);">
+        <div class="insight-title" style="color: #6496ff;">Nota sobre el reverse</div>
+        <div>El boton "Reverse" aqui simplemente <strong>rebobina</strong> la interpolacion visual (recorriendo t de T a 0 con la formula cerrada x_t = sqrt(alpha_bar_t)*x_0 + sqrt(1-alpha_bar_t)*epsilon). No simula el proceso de denoising real con prediccion de score. Para ver el reverse process real con prediccion de ruido y diferentes schedulers, consulta el interactivo <a href="ddpm_vs_ddim.html" style="color:#6496ff;">DDPM vs DDIM</a>.</div>
+    </div>
+
+    <script type="module">
+    import { setupCanvas } from './shared/canvas.js';
+    import { randn } from './shared/math.js';
+
+    (function() {
+        // ================================================================
+        // Configuration
+        // ================================================================
+        const T = 50;
+        const NUM_POINTS = 200;
+        const BETA_START = 0.0001;
+        const BETA_END = 0.05;
+
+        // Pre-compute beta schedule and alpha_bar values
+        const betas = [];
+        const alphas = [];
+        const alphasBar = [];
+        for (let t = 0; t <= T; t++) {
+            const beta = BETA_START + (BETA_END - BETA_START) * (t / T);
+            betas.push(beta);
+            alphas.push(1 - beta);
+        }
+        // alpha_bar_0 = 1 (clean), then cumulative product
+        alphasBar.push(1.0);
+        for (let t = 1; t <= T; t++) {
+            alphasBar.push(alphasBar[t - 1] * alphas[t]);
+        }
+
+        // ================================================================
+        // Point cloud generation
+        // ================================================================
+        function generateMoons(n) {
+            const points = [];
+            const half = Math.floor(n / 2);
+            for (let i = 0; i < half; i++) {
+                const angle = Math.PI * (i / half);
+                const x = Math.cos(angle) + (Math.random() - 0.5) * 0.15;
+                const y = Math.sin(angle) + (Math.random() - 0.5) * 0.15;
+                points.push([x, y]);
+            }
+            for (let i = 0; i < n - half; i++) {
+                const angle = Math.PI * (i / (n - half));
+                const x = 1 - Math.cos(angle) + (Math.random() - 0.5) * 0.15;
+                const y = 1 - Math.sin(angle) - 0.5 + (Math.random() - 0.5) * 0.15;
+                points.push([x, y]);
+            }
+            return normalizePoints(points);
+        }
+
+        function generateSpiral(n) {
+            const points = [];
+            const half = Math.floor(n / 2);
+            for (let i = 0; i < half; i++) {
+                const t = (i / half) * 2 * Math.PI;
+                const r = 0.3 + t * 0.15;
+                const x = r * Math.cos(t) + (Math.random() - 0.5) * 0.1;
+                const y = r * Math.sin(t) + (Math.random() - 0.5) * 0.1;
+                points.push([x, y]);
+            }
+            for (let i = 0; i < n - half; i++) {
+                const t = (i / (n - half)) * 2 * Math.PI;
+                const r = 0.3 + t * 0.15;
+                const x = -r * Math.cos(t) + (Math.random() - 0.5) * 0.1;
+                const y = -r * Math.sin(t) + (Math.random() - 0.5) * 0.1;
+                points.push([x, y]);
+            }
+            return normalizePoints(points);
+        }
+
+        function generateRing(n) {
+            const points = [];
+            for (let i = 0; i < n; i++) {
+                const angle = (i / n) * 2 * Math.PI + (Math.random() - 0.5) * 0.3;
+                const r = 1.0 + (Math.random() - 0.5) * 0.25;
+                const x = r * Math.cos(angle);
+                const y = r * Math.sin(angle);
+                points.push([x, y]);
+            }
+            return normalizePoints(points);
+        }
+
+        function normalizePoints(points) {
+            // Center and scale to [-2.5, 2.5] range roughly
+            let cx = 0, cy = 0;
+            for (const p of points) { cx += p[0]; cy += p[1]; }
+            cx /= points.length; cy /= points.length;
+
+            let maxDist = 0;
+            for (const p of points) {
+                const dx = p[0] - cx, dy = p[1] - cy;
+                maxDist = Math.max(maxDist, Math.sqrt(dx * dx + dy * dy));
+            }
+
+            const scale = 2.0 / (maxDist || 1);
+            return points.map(p => [(p[0] - cx) * scale, (p[1] - cy) * scale]);
+        }
+
+        // ================================================================
+        // State
+        // ================================================================
+        let currentShape = 'moons';
+        let x0 = []; // original clean points [[x, y], ...]
+        let epsilon = []; // noise for each point [[ex, ey], ...]
+        let currentT = 0;
+        let animationId = null;
+        let animationDirection = 0; // 0 = none, 1 = forward, -1 = reverse
+
+        function initPoints() {
+            switch (currentShape) {
+                case 'moons': x0 = generateMoons(NUM_POINTS); break;
+                case 'spiral': x0 = generateSpiral(NUM_POINTS); break;
+                case 'ring': x0 = generateRing(NUM_POINTS); break;
+            }
+            // Generate fixed noise vectors
+            epsilon = [];
+            for (let i = 0; i < NUM_POINTS; i++) {
+                epsilon.push([randn(), randn()]);
+            }
+        }
+
+        function getPointsAtT(t) {
+            const abT = alphasBar[t];
+            const sqrtAb = Math.sqrt(abT);
+            const sqrtOneMinusAb = Math.sqrt(1 - abT);
+            const points = [];
+            for (let i = 0; i < NUM_POINTS; i++) {
+                const px = sqrtAb * x0[i][0] + sqrtOneMinusAb * epsilon[i][0];
+                const py = sqrtAb * x0[i][1] + sqrtOneMinusAb * epsilon[i][1];
+                points.push([px, py]);
+            }
+            return points;
+        }
+
+        // ================================================================
+        // Color interpolation
+        // ================================================================
+        function lerpColor(t) {
+            // t: 0 (blue) -> 1 (red)
+            // blue: #6496ff (100, 150, 255) -> red: #e94560 (233, 69, 96)
+            const r = Math.round(100 + (233 - 100) * t);
+            const g = Math.round(150 + (69 - 150) * t);
+            const b = Math.round(255 + (96 - 255) * t);
+            return { r, g, b };
+        }
+
+        // ================================================================
+        // Draw main canvas
+        // ================================================================
+        function drawMainCanvas() {
+            const canvas = document.getElementById('mainCanvas');
+            const { ctx, w, h } = setupCanvas(canvas);
+
+            // Background
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, w, h);
+
+            // Grid
+            const pad = 40;
+            const plotW = w - 2 * pad;
+            const plotH = h - 2 * pad;
+            const range = 4.0; // coordinate range [-range, range]
+
+            // Grid lines
+            ctx.strokeStyle = '#1a1a3e';
+            ctx.lineWidth = 1;
+            for (let gv = -3; gv <= 3; gv++) {
+                const px = pad + (gv + range) / (2 * range) * plotW;
+                const py = pad + (-gv + range) / (2 * range) * plotH;
+                // vertical
+                ctx.beginPath();
+                ctx.moveTo(px, pad);
+                ctx.lineTo(px, pad + plotH);
+                ctx.stroke();
+                // horizontal
+                ctx.beginPath();
+                ctx.moveTo(pad, py);
+                ctx.lineTo(pad + plotW, py);
+                ctx.stroke();
+            }
+
+            // Axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            const cx = pad + plotW / 2;
+            const cy = pad + plotH / 2;
+            ctx.beginPath();
+            ctx.moveTo(pad, cy);
+            ctx.lineTo(pad + plotW, cy);
+            ctx.moveTo(cx, pad);
+            ctx.lineTo(cx, pad + plotH);
+            ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#555';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            for (let gv = -3; gv <= 3; gv++) {
+                if (gv === 0) continue;
+                const px = pad + (gv + range) / (2 * range) * plotW;
+                ctx.fillText(gv.toString(), px, cy + 14);
+            }
+            ctx.textAlign = 'right';
+            for (let gv = -3; gv <= 3; gv++) {
+                if (gv === 0) continue;
+                const py = pad + (-gv + range) / (2 * range) * plotH;
+                ctx.fillText(gv.toString(), cx - 6, py + 4);
+            }
+
+            // Get current points
+            const points = getPointsAtT(currentT);
+            const frac = currentT / T;
+            const color = lerpColor(frac);
+
+            // Draw points with glow
+            for (let i = 0; i < points.length; i++) {
+                const px = pad + (points[i][0] + range) / (2 * range) * plotW;
+                const py = pad + (-points[i][1] + range) / (2 * range) * plotH;
+
+                // Clamp to plot area
+                if (px < pad - 5 || px > pad + plotW + 5 || py < pad - 5 || py > pad + plotH + 5) continue;
+
+                // Glow
+                const gradient = ctx.createRadialGradient(px, py, 0, px, py, 8);
+                gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.4)`);
+                gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(px, py, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Point
+                ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.9)`;
+                ctx.beginPath();
+                ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Title on canvas
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            if (currentT === 0) {
+                ctx.fillText('t = 0: Datos originales', pad + 5, pad + 16);
+            } else if (currentT === T) {
+                ctx.fillText('t = T: Ruido gaussiano puro', pad + 5, pad + 16);
+            } else {
+                ctx.fillText(`t = ${currentT}`, pad + 5, pad + 16);
+            }
+        }
+
+        // ================================================================
+        // Draw timeline
+        // ================================================================
+        function drawTimeline() {
+            const canvas = document.getElementById('timelineCanvas');
+            const { ctx, w, h } = setupCanvas(canvas);
+
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, w, h);
+
+            const pad = 40;
+            const barH = 14;
+            const barY = h / 2 - barH / 2;
+            const barW = w - 2 * pad;
+
+            // Gradient bar
+            const gradient = ctx.createLinearGradient(pad, 0, pad + barW, 0);
+            gradient.addColorStop(0, '#6496ff');
+            gradient.addColorStop(0.5, '#a06aff');
+            gradient.addColorStop(1, '#e94560');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.roundRect(pad, barY, barW, barH, 7);
+            ctx.fill();
+
+            // Darkened overlay to show progress
+            const frac = currentT / T;
+            const markerX = pad + frac * barW;
+
+            // Tick marks
+            ctx.fillStyle = '#555';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            for (let i = 0; i <= 5; i++) {
+                const x = pad + (i / 5) * barW;
+                const tVal = Math.round(i / 5 * T);
+                ctx.fillText(`t=${tVal}`, x, barY + barH + 14);
+            }
+
+            // Labels
+            ctx.fillStyle = '#6496ff';
+            ctx.textAlign = 'left';
+            ctx.font = '10px sans-serif';
+            ctx.fillText('Limpio', pad, barY - 5);
+            ctx.fillStyle = '#e94560';
+            ctx.textAlign = 'right';
+            ctx.fillText('Ruido', pad + barW, barY - 5);
+
+            // Marker
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(markerX, barY + barH / 2, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#0f0f23';
+            ctx.beginPath();
+            ctx.arc(markerX, barY + barH / 2, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            const innerColor = lerpColor(frac);
+            ctx.fillStyle = `rgb(${innerColor.r}, ${innerColor.g}, ${innerColor.b})`;
+            ctx.beginPath();
+            ctx.arc(markerX, barY + barH / 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // ================================================================
+        // Timeline interaction (drag)
+        // ================================================================
+        function setupTimelineInteraction() {
+            const canvas = document.getElementById('timelineCanvas');
+            const pad = 40;
+            let dragging = false;
+
+            function getT(clientX) {
+                const rect = canvas.getBoundingClientRect();
+                const x = clientX - rect.left;
+                const barW = rect.width - 2 * pad;
+                let frac = (x - pad) / barW;
+                frac = Math.max(0, Math.min(1, frac));
+                return Math.round(frac * T);
+            }
+
+            canvas.addEventListener('mousedown', function(e) {
+                dragging = true;
+                stopAnimation();
+                currentT = getT(e.clientX);
+                updateAll();
+            });
+            window.addEventListener('mousemove', function(e) {
+                if (!dragging) return;
+                currentT = getT(e.clientX);
+                updateAll();
+            });
+            window.addEventListener('mouseup', function() {
+                dragging = false;
+            });
+
+            // Touch events
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                dragging = true;
+                stopAnimation();
+                currentT = getT(e.touches[0].clientX);
+                updateAll();
+            }, { passive: false });
+            window.addEventListener('touchmove', function(e) {
+                if (!dragging) return;
+                currentT = getT(e.touches[0].clientX);
+                updateAll();
+            });
+            window.addEventListener('touchend', function() {
+                dragging = false;
+            });
+        }
+
+        // ================================================================
+        // Update info panel
+        // ================================================================
+        function updateInfo() {
+            const abT = alphasBar[currentT];
+            const noiseLevel = 1 - abT;
+            const sqrtAb = Math.sqrt(abT);
+            const sqrtOneMinusAb = Math.sqrt(noiseLevel);
+
+            document.getElementById('infoTimestep').textContent = `t = ${currentT} / ${T}`;
+            document.getElementById('infoAlphaBar').textContent = abT.toFixed(4);
+            document.getElementById('infoNoise').textContent = noiseLevel.toFixed(4);
+
+            // SNR in dB
+            let snrText;
+            if (noiseLevel < 1e-10) {
+                snrText = '+inf';
+            } else if (abT < 1e-10) {
+                snrText = '-inf';
+            } else {
+                const snr = 10 * Math.log10(abT / noiseLevel);
+                snrText = snr.toFixed(1) + ' dB';
+            }
+            document.getElementById('infoSNR').textContent = snrText;
+
+            // Formula
+            document.getElementById('fSqrtAlpha').textContent = sqrtAb.toFixed(4);
+            document.getElementById('fSqrtOneMinusAlpha').textContent = sqrtOneMinusAb.toFixed(4);
+
+            let formulaNote = '';
+            if (currentT === 0) {
+                formulaNote = 'x_0 puro: 100% senal, 0% ruido';
+            } else if (currentT === T) {
+                formulaNote = 'x_T: ~0% senal, ~100% ruido (gaussiana pura)';
+            } else {
+                const signalPct = (abT * 100).toFixed(1);
+                const noisePct = (noiseLevel * 100).toFixed(1);
+                formulaNote = `Senal: ${signalPct}% | Ruido: ${noisePct}%`;
+            }
+            document.getElementById('formulaNote').textContent = formulaNote;
+
+            // Timestep slider sync
+            document.getElementById('timestepSlider').value = currentT;
+            document.getElementById('timestepValue').textContent = `${currentT} / ${T}`;
+
+            // Insight text
+            updateInsight();
+        }
+
+        function updateInsight() {
+            const el = document.getElementById('insightText');
+            if (currentT === 0) {
+                el.textContent = 't=0: Datos originales. Sin ruido anadido.';
+            } else if (currentT < T / 4) {
+                el.textContent = 'Forward: Se anade ruido gradualmente. La estructura original aun es visible.';
+            } else if (currentT >= T / 4 && currentT <= T * 3 / 4) {
+                if (Math.abs(currentT - T / 2) < 3) {
+                    el.textContent = 'A mitad del proceso, la estructura original se difumina pero no desaparece del todo.';
+                } else if (currentT < T / 2) {
+                    el.textContent = 'Forward: Se anade ruido gradualmente. La estructura original empieza a difuminarse.';
+                } else {
+                    el.textContent = 'Forward: La estructura es cada vez mas dificil de reconocer bajo el ruido.';
+                }
+            } else if (currentT < T) {
+                el.textContent = 'Casi ruido puro. La estructura original es irreconocible.';
+            } else {
+                el.textContent = 't=T: Ruido gaussiano puro. Toda la informacion del dato original se ha perdido.';
+            }
+        }
+
+        // ================================================================
+        // Animation
+        // ================================================================
+        function stopAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            animationDirection = 0;
+            document.getElementById('btnForward').classList.remove('active');
+            document.getElementById('btnReverse').classList.remove('active');
+        }
+
+        function startAnimation(direction) {
+            stopAnimation();
+            animationDirection = direction;
+
+            if (direction === 1) {
+                document.getElementById('btnForward').classList.add('active');
+                if (currentT >= T) currentT = 0;
+            } else {
+                document.getElementById('btnReverse').classList.add('active');
+                if (currentT <= 0) currentT = T;
+            }
+
+            const speed = parseInt(document.getElementById('speedSlider').value);
+
+            let lastTime = 0;
+            const msPerStep = Math.max(20, 200 - speed * 18);
+
+            function step(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                const elapsed = timestamp - lastTime;
+
+                if (elapsed >= msPerStep) {
+                    lastTime = timestamp;
+                    currentT += direction;
+
+                    if (currentT > T) { currentT = T; stopAnimation(); }
+                    if (currentT < 0) { currentT = 0; stopAnimation(); }
+
+                    updateAll();
+                }
+
+                if (animationDirection !== 0) {
+                    animationId = requestAnimationFrame(step);
+                }
+            }
+
+            animationId = requestAnimationFrame(step);
+        }
+
+        // ================================================================
+        // Update everything
+        // ================================================================
+        function updateAll() {
+            drawMainCanvas();
+            drawTimeline();
+            updateInfo();
+        }
+
+        // ================================================================
+        // Event listeners
+        // ================================================================
+        function setupControls() {
+            document.getElementById('shapeSelect').addEventListener('change', function(e) {
+                currentShape = e.target.value;
+                stopAnimation();
+                currentT = 0;
+                initPoints();
+                updateAll();
+            });
+
+            document.getElementById('btnForward').addEventListener('click', function() {
+                if (animationDirection === 1) {
+                    stopAnimation();
+                } else {
+                    startAnimation(1);
+                }
+            });
+
+            document.getElementById('btnReverse').addEventListener('click', function() {
+                if (animationDirection === -1) {
+                    stopAnimation();
+                } else {
+                    startAnimation(-1);
+                }
+            });
+
+            document.getElementById('speedSlider').addEventListener('input', function(e) {
+                document.getElementById('speedValue').textContent = e.target.value;
+            });
+
+            document.getElementById('timestepSlider').addEventListener('input', function(e) {
+                stopAnimation();
+                currentT = parseInt(e.target.value);
+                updateAll();
+            });
+        }
+
+        // ================================================================
+        // roundRect polyfill for older browsers
+        // ================================================================
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (typeof r === 'number') r = [r, r, r, r];
+                const [tl, tr, br, bl] = r;
+                this.moveTo(x + tl, y);
+                this.lineTo(x + w - tr, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + tr);
+                this.lineTo(x + w, y + h - br);
+                this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+                this.lineTo(x + bl, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - bl);
+                this.lineTo(x, y + tl);
+                this.quadraticCurveTo(x, y, x + tl, y);
+                this.closePath();
+                return this;
+            };
+        }
+
+        // ================================================================
+        // Init
+        // ================================================================
+        window.addEventListener('load', function() {
+            initPoints();
+            setupControls();
+            setupTimelineInteraction();
+            updateAll();
+        });
+
+        window.addEventListener('resize', function() {
+            updateAll();
+        });
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XCS236 — Presentaciones</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="./styles/topnav.css">
+  <link rel="stylesheet" href="./styles/presentation.css">
+  <link rel="stylesheet" href="./styles/chat-panel.css">
+  <link rel="stylesheet" href="./styles/end-screen.css">
+  <link rel="stylesheet" href="./styles/interaction-overlay.css">
+</head>
+<body>
+  <div id="app-layout">
+    <div class="player-wrap">
+      <!-- topnav injected by player-main.ts -->
+
+      <!-- Stage -->
+      <div class="player-stage">
+        <canvas id="main-canvas" role="img" aria-label=""></canvas>
+        <div class="katex-overlay" id="katex-overlay"></div>
+        <div id="interaction-overlay"></div>
+        <div class="voice-loading" id="voice-loading"><div class="voice-loading-spinner"></div></div>
+      </div>
+
+      <!-- Subtitle bar (between stage and controls) -->
+      <div id="subtitle"></div>
+
+      <!-- Controls -->
+      <div id="controls"></div>
+    </div>
+
+    <!-- Chat panel -->
+    <div id="chat-panel"></div>
+
+    <!-- Settings modal (inside app-layout so it's visible in fullscreen) -->
+    <div class="settings-modal" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="settings-panel">
+      <h2 id="settings-title" data-i18n="settings.title">Configuraci&oacute;n</h2>
+
+      <label for="voice-select" data-i18n="settings.voice">Voz</label>
+      <select id="voice-select">
+        <option value="silent" data-i18n="settings.voiceSilent">Sin voz</option>
+        <option value="web-speech" selected data-i18n="settings.voiceWeb">Web Speech (navegador)</option>
+        <option value="openai-tts" data-i18n="settings.voiceOpenAI">OpenAI TTS (alta calidad)</option>
+        <option value="elevenlabs-tts" data-i18n="settings.voiceElevenLabs">ElevenLabs TTS (alta calidad)</option>
+      </select>
+
+      <label for="openai-key" data-i18n="settings.openaiKey">OpenAI API Key (para TTS)</label>
+      <input type="text" id="openai-key" placeholder="sk-..." autocomplete="off">
+
+      <label for="elevenlabs-key" data-i18n="settings.elevenlabsKey">ElevenLabs API Key (para TTS)</label>
+      <input type="text" id="elevenlabs-key" placeholder="sk_..." autocomplete="off">
+
+      <label for="anthropic-key" data-i18n="settings.anthropicKey">Anthropic API Key (para chat)</label>
+      <input type="text" id="anthropic-key" placeholder="sk-ant-..." autocomplete="off">
+
+      <hr class="settings-share-sep">
+      <button class="btn-share" id="btn-share-keys" data-i18n="share.btn">Compartir claves</button>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btn-settings-cancel" data-i18n="settings.cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-settings-save" data-i18n="settings.save">Guardar</button>
+      </div>
+    </div>
+  </div><!-- /settings-modal -->
+  </div><!-- /app-layout -->
+
+  <script type="module" src="./player-main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+{
+  "model": "eleven_multilingual_v2",
+  "voiceId": "ZCh4e9eZSUf41K4cmCEL",
+  "generated": "2026-03-09T18:46:40.106Z",
+  "entries": {
+    "kl-divergence-mle/scene1": {
+      "hash": "9d809bd50ecf25b5",
+      "file": "kl-divergence-mle/scene1.mp3"
+    },
+    "kl-divergence-mle/scene2": {
+      "hash": "6742b192b1f8f10d",
+      "file": "kl-divergence-mle/scene2.mp3"
+    },
+    "kl-divergence-mle/scene3": {
+      "hash": "eba8222ee6e47b07",
+      "file": "kl-divergence-mle/scene3.mp3"
+    },
+    "kl-divergence-mle/scene4": {
+      "hash": "14893c948ef08430",
+      "file": "kl-divergence-mle/scene4.mp3"
+    },
+    "kl-divergence-mle/scene5": {
+      "hash": "892a3d32e5ae9014",
+      "file": "kl-divergence-mle/scene5.mp3"
+    },
+    "kl-divergence-mle/scene6": {
+      "hash": "ba7a045786d9dcfd",
+      "file": "kl-divergence-mle/scene6.mp3"
+    },
+    "kl-divergence-mle/scene7": {
+      "hash": "08993cedda14becc",
+      "file": "kl-divergence-mle/scene7.mp3"
+    },
+    "arquitecturas-flujos/scene1": {
+      "hash": "1ee1922fb94f6e61",
+      "file": "arquitecturas-flujos/scene1.mp3"
+    },
+    "arquitecturas-flujos/scene2": {
+      "hash": "ee161063231fbb43",
+      "file": "arquitecturas-flujos/scene2.mp3"
+    },
+    "arquitecturas-flujos/scene3": {
+      "hash": "d10ea9f19457da0c",
+      "file": "arquitecturas-flujos/scene3.mp3"
+    },
+    "arquitecturas-flujos/scene4": {
+      "hash": "d2c83a2fe41afa30",
+      "file": "arquitecturas-flujos/scene4.mp3"
+    },
+    "arquitecturas-flujos/scene5": {
+      "hash": "5d08d4d99fc86565",
+      "file": "arquitecturas-flujos/scene5.mp3"
+    },
+    "arquitecturas-flujos/scene6": {
+      "hash": "3f51682389aa2884",
+      "file": "arquitecturas-flujos/scene6.mp3"
+    },
+    "arquitecturas-flujos/scene7": {
+      "hash": "59951618b59d568d",
+      "file": "arquitecturas-flujos/scene7.mp3"
+    },
+    "cambio-de-variables/scene1": {
+      "hash": "2566c4da6172e791",
+      "file": "cambio-de-variables/scene1.mp3"
+    },
+    "cambio-de-variables/scene2": {
+      "hash": "0cdcff4f371c4fdf",
+      "file": "cambio-de-variables/scene2.mp3"
+    },
+    "cambio-de-variables/scene3": {
+      "hash": "d7a68445263ba4f6",
+      "file": "cambio-de-variables/scene3.mp3"
+    },
+    "cambio-de-variables/scene4": {
+      "hash": "1a030bcc985eba9d",
+      "file": "cambio-de-variables/scene4.mp3"
+    },
+    "cambio-de-variables/scene5": {
+      "hash": "e0757f2c87e5bf77",
+      "file": "cambio-de-variables/scene5.mp3"
+    },
+    "cambio-de-variables/scene6": {
+      "hash": "5bf67bd1d87884b0",
+      "file": "cambio-de-variables/scene6.mp3"
+    },
+    "cambio-de-variables/scene7": {
+      "hash": "9cf121593cef56b1",
+      "file": "cambio-de-variables/scene7.mp3"
+    },
+    "conditional-gan/scene1": {
+      "hash": "2410697e68007361",
+      "file": "conditional-gan/scene1.mp3"
+    },
+    "conditional-gan/scene2": {
+      "hash": "400c713ec9d57d7e",
+      "file": "conditional-gan/scene2.mp3"
+    },
+    "conditional-gan/scene3": {
+      "hash": "20dc09ab9f270068",
+      "file": "conditional-gan/scene3.mp3"
+    },
+    "conditional-gan/scene4": {
+      "hash": "82a0e5312d81a728",
+      "file": "conditional-gan/scene4.mp3"
+    },
+    "conditional-gan/scene5": {
+      "hash": "34f1100976f02bf5",
+      "file": "conditional-gan/scene5.mp3"
+    },
+    "conditional-gan/scene6": {
+      "hash": "a8296f54f8dbedc5",
+      "file": "conditional-gan/scene6.mp3"
+    },
+    "conditional-gan/scene7": {
+      "hash": "0cd453f7b1402949",
+      "file": "conditional-gan/scene7.mp3"
+    },
+    "ddpm-vs-ddim/scene1": {
+      "hash": "ffa28928be25c167",
+      "file": "ddpm-vs-ddim/scene1.mp3"
+    },
+    "ddpm-vs-ddim/scene2": {
+      "hash": "3acbe4e91d4b12e2",
+      "file": "ddpm-vs-ddim/scene2.mp3"
+    },
+    "ddpm-vs-ddim/scene3": {
+      "hash": "beb078a0141a7fd1",
+      "file": "ddpm-vs-ddim/scene3.mp3"
+    },
+    "ddpm-vs-ddim/scene4": {
+      "hash": "b5c576771d0d3d63",
+      "file": "ddpm-vs-ddim/scene4.mp3"
+    },
+    "ddpm-vs-ddim/scene5": {
+      "hash": "4ef515c99a5e758b",
+      "file": "ddpm-vs-ddim/scene5.mp3"
+    },
+    "ddpm-vs-ddim/scene6": {
+      "hash": "e82abe4aa66dec1b",
+      "file": "ddpm-vs-ddim/scene6.mp3"
+    },
+    "ddpm-vs-ddim/scene7": {
+      "hash": "289888f6cf758b0b",
+      "file": "ddpm-vs-ddim/scene7.mp3"
+    },
+    "elbo/scene1": {
+      "hash": "b0c115fe950513d5",
+      "file": "elbo/scene1.mp3"
+    },
+    "elbo/scene2": {
+      "hash": "ac5c073b71235d23",
+      "file": "elbo/scene2.mp3"
+    },
+    "elbo/scene3": {
+      "hash": "3afb57b49f5c7c10",
+      "file": "elbo/scene3.mp3"
+    },
+    "elbo/scene4": {
+      "hash": "a9863e2ca0ff5c60",
+      "file": "elbo/scene4.mp3"
+    },
+    "elbo/scene5": {
+      "hash": "7a9b41a081e60f7d",
+      "file": "elbo/scene5.mp3"
+    },
+    "elbo/scene6": {
+      "hash": "cf0d31fa737a8ab4",
+      "file": "elbo/scene6.mp3"
+    },
+    "elbo/scene7": {
+      "hash": "021aad1e766673c8",
+      "file": "elbo/scene7.mp3"
+    },
+    "energy-based-models/scene1": {
+      "hash": "d98bcb3a1033016a",
+      "file": "energy-based-models/scene1.mp3"
+    },
+    "energy-based-models/scene2": {
+      "hash": "e0ae390174b9159e",
+      "file": "energy-based-models/scene2.mp3"
+    },
+    "energy-based-models/scene3": {
+      "hash": "9b80e7f7dc7c2b52",
+      "file": "energy-based-models/scene3.mp3"
+    },
+    "energy-based-models/scene4": {
+      "hash": "357645f2214693ca",
+      "file": "energy-based-models/scene4.mp3"
+    },
+    "energy-based-models/scene5": {
+      "hash": "5cf9eb26e684a757",
+      "file": "energy-based-models/scene5.mp3"
+    },
+    "energy-based-models/scene6": {
+      "hash": "3facdedf2469b5f8",
+      "file": "energy-based-models/scene6.mp3"
+    },
+    "energy-based-models/scene7": {
+      "hash": "12d353d7e5f1d9a6",
+      "file": "energy-based-models/scene7.mp3"
+    },
+    "entrenamiento-gans/scene1": {
+      "hash": "ad26ffc73b2d2b4e",
+      "file": "entrenamiento-gans/scene1.mp3"
+    },
+    "entrenamiento-gans/scene2": {
+      "hash": "15b241fa1b82baf9",
+      "file": "entrenamiento-gans/scene2.mp3"
+    },
+    "entrenamiento-gans/scene3": {
+      "hash": "e770d7b16d399867",
+      "file": "entrenamiento-gans/scene3.mp3"
+    },
+    "entrenamiento-gans/scene4": {
+      "hash": "60d316a2d39db459",
+      "file": "entrenamiento-gans/scene4.mp3"
+    },
+    "entrenamiento-gans/scene5": {
+      "hash": "f019b4d9d16284a7",
+      "file": "entrenamiento-gans/scene5.mp3"
+    },
+    "entrenamiento-gans/scene6": {
+      "hash": "70d2374635b4d49c",
+      "file": "entrenamiento-gans/scene6.mp3"
+    },
+    "entrenamiento-gans/scene7": {
+      "hash": "a9af831cdc0123b8",
+      "file": "entrenamiento-gans/scene7.mp3"
+    },
+    "estimacion-monte-carlo/scene1": {
+      "hash": "1b3de3b05c43fec6",
+      "file": "estimacion-monte-carlo/scene1.mp3"
+    },
+    "estimacion-monte-carlo/scene2": {
+      "hash": "366c0c0d36e92696",
+      "file": "estimacion-monte-carlo/scene2.mp3"
+    },
+    "estimacion-monte-carlo/scene3": {
+      "hash": "ecce5948793ca8fc",
+      "file": "estimacion-monte-carlo/scene3.mp3"
+    },
+    "estimacion-monte-carlo/scene4": {
+      "hash": "aeb8c76c97626b2e",
+      "file": "estimacion-monte-carlo/scene4.mp3"
+    },
+    "estimacion-monte-carlo/scene5": {
+      "hash": "6107eb6babc07e24",
+      "file": "estimacion-monte-carlo/scene5.mp3"
+    },
+    "estimacion-monte-carlo/scene6": {
+      "hash": "05758e77415ca504",
+      "file": "estimacion-monte-carlo/scene6.mp3"
+    },
+    "estimacion-monte-carlo/scene7": {
+      "hash": "11141484b9d0a20e",
+      "file": "estimacion-monte-carlo/scene7.mp3"
+    },
+    "f-divergencias/scene1": {
+      "hash": "436127a9bbd9ee2b",
+      "file": "f-divergencias/scene1.mp3"
+    },
+    "f-divergencias/scene2": {
+      "hash": "d073a22a195a8f2a",
+      "file": "f-divergencias/scene2.mp3"
+    },
+    "f-divergencias/scene3": {
+      "hash": "9bb5558c6e70f93b",
+      "file": "f-divergencias/scene3.mp3"
+    },
+    "f-divergencias/scene4": {
+      "hash": "66315d16a13efecb",
+      "file": "f-divergencias/scene4.mp3"
+    },
+    "f-divergencias/scene5": {
+      "hash": "d3afa052008d609a",
+      "file": "f-divergencias/scene5.mp3"
+    },
+    "f-divergencias/scene6": {
+      "hash": "5c7c5bad9067e574",
+      "file": "f-divergencias/scene6.mp3"
+    },
+    "f-divergencias/scene7": {
+      "hash": "1ed2fe85f2cb23c6",
+      "file": "f-divergencias/scene7.mp3"
+    },
+    "gans-min-max/scene1": {
+      "hash": "6c331cb017a810b2",
+      "file": "gans-min-max/scene1.mp3"
+    },
+    "gans-min-max/scene2": {
+      "hash": "358cc55b1ed2dba3",
+      "file": "gans-min-max/scene2.mp3"
+    },
+    "gans-min-max/scene3": {
+      "hash": "e80bb20c3996611b",
+      "file": "gans-min-max/scene3.mp3"
+    },
+    "gans-min-max/scene4": {
+      "hash": "016da8282f7c7278",
+      "file": "gans-min-max/scene4.mp3"
+    },
+    "gans-min-max/scene5": {
+      "hash": "9b4bed672f79d55f",
+      "file": "gans-min-max/scene5.mp3"
+    },
+    "gans-min-max/scene6": {
+      "hash": "2ada5fe3f68b9c65",
+      "file": "gans-min-max/scene6.mp3"
+    },
+    "gans-min-max/scene7": {
+      "hash": "abe40f8a111c9098",
+      "file": "gans-min-max/scene7.mp3"
+    },
+    "gmvae/scene1": {
+      "hash": "36aff2161b4ef466",
+      "file": "gmvae/scene1.mp3"
+    },
+    "gmvae/scene2": {
+      "hash": "3a60bd4d045d02d1",
+      "file": "gmvae/scene2.mp3"
+    },
+    "gmvae/scene3": {
+      "hash": "3148adab6d0662af",
+      "file": "gmvae/scene3.mp3"
+    },
+    "gmvae/scene4": {
+      "hash": "2a06f1c893bca75f",
+      "file": "gmvae/scene4.mp3"
+    },
+    "gmvae/scene5": {
+      "hash": "cb33e29a8f643839",
+      "file": "gmvae/scene5.mp3"
+    },
+    "gmvae/scene6": {
+      "hash": "6acde559210a6975",
+      "file": "gmvae/scene6.mp3"
+    },
+    "gmvae/scene7": {
+      "hash": "2a9d6db043fb0123",
+      "file": "gmvae/scene7.mp3"
+    },
+    "independencia-condicional/scene1": {
+      "hash": "ec212c0339fd2a0e",
+      "file": "independencia-condicional/scene1.mp3"
+    },
+    "independencia-condicional/scene2": {
+      "hash": "076a38897676d667",
+      "file": "independencia-condicional/scene2.mp3"
+    },
+    "independencia-condicional/scene3": {
+      "hash": "e974698d8f83aea3",
+      "file": "independencia-condicional/scene3.mp3"
+    },
+    "independencia-condicional/scene4": {
+      "hash": "f98492982a741674",
+      "file": "independencia-condicional/scene4.mp3"
+    },
+    "independencia-condicional/scene5": {
+      "hash": "75ecd137dc9a620a",
+      "file": "independencia-condicional/scene5.mp3"
+    },
+    "independencia-condicional/scene6": {
+      "hash": "b0db7a6bbc1d7bdb",
+      "file": "independencia-condicional/scene6.mp3"
+    },
+    "independencia-condicional/scene7": {
+      "hash": "8919fa776c098e94",
+      "file": "independencia-condicional/scene7.mp3"
+    },
+    "inpainting-difusion/scene1": {
+      "hash": "1e7e23c1a0ffd0ad",
+      "file": "inpainting-difusion/scene1.mp3"
+    },
+    "inpainting-difusion/scene2": {
+      "hash": "96f286d9f3106775",
+      "file": "inpainting-difusion/scene2.mp3"
+    },
+    "inpainting-difusion/scene3": {
+      "hash": "8ca73095984b9471",
+      "file": "inpainting-difusion/scene3.mp3"
+    },
+    "inpainting-difusion/scene4": {
+      "hash": "42b070e8cda8211d",
+      "file": "inpainting-difusion/scene4.mp3"
+    },
+    "inpainting-difusion/scene5": {
+      "hash": "d14cdceaaa0b7322",
+      "file": "inpainting-difusion/scene5.mp3"
+    },
+    "inpainting-difusion/scene6": {
+      "hash": "10f2bba8485a8263",
+      "file": "inpainting-difusion/scene6.mp3"
+    },
+    "inpainting-difusion/scene7": {
+      "hash": "787be372d532510e",
+      "file": "inpainting-difusion/scene7.mp3"
+    },
+    "iwae/scene1": {
+      "hash": "e8a1b25291a9c9a4",
+      "file": "iwae/scene1.mp3"
+    },
+    "iwae/scene2": {
+      "hash": "93bfa5d1b811ec53",
+      "file": "iwae/scene2.mp3"
+    },
+    "iwae/scene3": {
+      "hash": "151735a21c7a182f",
+      "file": "iwae/scene3.mp3"
+    },
+    "iwae/scene4": {
+      "hash": "48a227444a7f3752",
+      "file": "iwae/scene4.mp3"
+    },
+    "iwae/scene5": {
+      "hash": "1ddecd13dea84e31",
+      "file": "iwae/scene5.mp3"
+    },
+    "iwae/scene6": {
+      "hash": "f6d0764191ecd82f",
+      "file": "iwae/scene6.mp3"
+    },
+    "iwae/scene7": {
+      "hash": "aab26eb805d15561",
+      "file": "iwae/scene7.mp3"
+    },
+    "maf-vs-iaf/scene1": {
+      "hash": "014b1ab48bad0902",
+      "file": "maf-vs-iaf/scene1.mp3"
+    },
+    "maf-vs-iaf/scene2": {
+      "hash": "5ac61addfecb3e90",
+      "file": "maf-vs-iaf/scene2.mp3"
+    },
+    "maf-vs-iaf/scene3": {
+      "hash": "abc1d09e92da0406",
+      "file": "maf-vs-iaf/scene3.mp3"
+    },
+    "maf-vs-iaf/scene4": {
+      "hash": "7f2e222cfba80c41",
+      "file": "maf-vs-iaf/scene4.mp3"
+    },
+    "maf-vs-iaf/scene5": {
+      "hash": "9b1cfa8afddae884",
+      "file": "maf-vs-iaf/scene5.mp3"
+    },
+    "maf-vs-iaf/scene6": {
+      "hash": "2dc96ee9921378e6",
+      "file": "maf-vs-iaf/scene6.mp3"
+    },
+    "maf-vs-iaf/scene7": {
+      "hash": "c0a5c53ca904b74e",
+      "file": "maf-vs-iaf/scene7.mp3"
+    },
+    "modelos-autoregresivos/scene1": {
+      "hash": "862ed834110d73a6",
+      "file": "modelos-autoregresivos/scene1.mp3"
+    }
+  }
+}

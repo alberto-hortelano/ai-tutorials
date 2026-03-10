@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campo Vectorial del Score</title>
+    <link rel="stylesheet" href="./shared/theme.css">
+    <style>
+        /* File-specific overrides */
+        body { max-width: 800px; }
+        h1 { margin-bottom: 5px; font-size: 1.5em; }
+        .subtitle { margin-bottom: 25px; }
+        .canvas-wrapper {
+            background: var(--panel);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        canvas { border-radius: 8px; cursor: crosshair; }
+        .controls h2 {
+            color: #fff;
+            font-size: 1.05em;
+            margin: 0 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .control-group {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+        }
+        .toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #ccc;
+        }
+        .toggle-item input[type="checkbox"] {
+            accent-color: var(--accent);
+            width: 16px;
+            height: 16px;
+        }
+        .insight-box {
+            background: var(--panel);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .insight-box h2 {
+            color: #fff;
+            font-size: 1.05em;
+            margin: 0 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .insight-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .insight-box li {
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #bbb;
+        }
+        .insight-box li strong { color: var(--accent); }
+        .formula { margin-bottom: 15px; font-size: 0.9em; }
+        .status-bar {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Campo Vectorial del Score &#8711;&#8339; log p(x)</h1>
+    <div class="subtitle">Mezcla de Gaussianas en 2D con campo de score y dinamica de Langevin</div>
+
+    <div class="formula">
+        &#8711;&#8339; log p(x) = &#8721;<sub>k</sub> r<sub>k</sub>(x) &middot; (&#8722;(x &#8722; &#956;<sub>k</sub>) / &#963;<sub>k</sub>&sup2;) &nbsp;&nbsp; donde &nbsp; r<sub>k</sub>(x) = w<sub>k</sub> N(x; &#956;<sub>k</sub>, &#963;<sub>k</sub>&sup2;I) / p(x)
+    </div>
+
+    <div class="canvas-wrapper">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+    <div class="status-bar" id="statusBar"></div>
+
+    <div class="controls">
+        <h2>Controles</h2>
+        <div class="control-group">
+            <div class="control">
+                <label>Componentes: <span class="value" id="nComp-val">3</span></label>
+                <input type="range" id="nComp" min="2" max="4" step="1" value="3">
+            </div>
+            <div class="control">
+                <label>Separacion: <span class="value" id="sep-val">2.0</span></label>
+                <input type="range" id="sep" min="0.5" max="4.0" step="0.1" value="2.0">
+            </div>
+            <div class="control">
+                <label>&#963; (desviacion estandar): <span class="value" id="sigma-val">0.8</span></label>
+                <input type="range" id="sigma" min="0.3" max="2.0" step="0.05" value="0.8">
+            </div>
+        </div>
+        <div class="toggles">
+            <label class="toggle-item">
+                <input type="checkbox" id="showHeatmap" checked>
+                Mapa de calor
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" id="showArrows" checked>
+                Flechas del score
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" id="showLangevin">
+                Trayectoria Langevin
+            </label>
+        </div>
+    </div>
+
+    <div class="insight-box">
+        <h2>Intuicion</h2>
+        <ul>
+            <li>El <strong>score</strong> &#8711;&#8339; log p(x) es un campo vectorial que apunta hacia las regiones de mayor densidad de probabilidad.</li>
+            <li>En los <strong>modos</strong> (maximos de p(x)), el score es cero: las flechas convergen y desaparecen.</li>
+            <li><strong>Langevin dynamics</strong> sigue el score + ruido para muestrear de p(x) sin conocer la constante de normalizacion Z: &nbsp; x<sub>t+1</sub> = x<sub>t</sub> + (&#951;/2) &#8711;&#8339; log p(x<sub>t</sub>) + &#8730;&#951; &middot; &#949;<sub>t</sub></li>
+            <li>A diferencia de la densidad p(x), el score <strong>no requiere evaluar Z</strong>: basta con conocer el modelo hasta una constante multiplicativa.</li>
+        </ul>
+    </div>
+
+    <script type="module">
+    import { randn, gaussian2D } from './shared/math.js';
+
+    {
+        // --- Configuration ---
+        const CANVAS_SIZE = 500;
+        const DOMAIN_MIN = -5;
+        const DOMAIN_MAX = 5;
+        const DOMAIN_RANGE = DOMAIN_MAX - DOMAIN_MIN;
+        const HEATMAP_RES = 150;
+        const ARROW_GRID = 25;
+        const LANGEVIN_STEPS = 300;
+        const LANGEVIN_ETA = 0.1;
+
+        // --- Canvas setup ---
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        function resizeCanvas() {
+            const wrapper = canvas.parentElement;
+            const maxW = Math.min(CANVAS_SIZE, wrapper.clientWidth - 30);
+            canvas.style.width = maxW + 'px';
+            canvas.style.height = maxW + 'px';
+            canvas.width = maxW * dpr;
+            canvas.height = maxW * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        resizeCanvas();
+
+        // --- State ---
+        let nComponents = 3;
+        let separation = 2.0;
+        let sigma = 0.8;
+        let showHeatmap = true;
+        let showArrows = true;
+        let showLangevin = false;
+
+        // Langevin trajectory
+        let langevinTrajectory = null;
+        let langevinAnimFrame = 0;
+        let langevinAnimId = null;
+
+        // --- Component layout ---
+        // Place components in a nice arrangement depending on count
+        function getComponents() {
+            const comps = [];
+            const w = 1.0 / nComponents;
+            if (nComponents === 2) {
+                comps.push({ mx: -separation, my: 0, sigma: sigma, w: w });
+                comps.push({ mx: separation, my: 0, sigma: sigma, w: w });
+            } else if (nComponents === 3) {
+                // Triangle arrangement
+                const angles = [-Math.PI / 2, Math.PI / 6, 5 * Math.PI / 6];
+                for (let i = 0; i < 3; i++) {
+                    comps.push({
+                        mx: separation * Math.cos(angles[i]),
+                        my: separation * Math.sin(angles[i]),
+                        sigma: sigma,
+                        w: w
+                    });
+                }
+            } else if (nComponents === 4) {
+                // Square arrangement
+                const offsets = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+                for (let i = 0; i < 4; i++) {
+                    comps.push({
+                        mx: separation * offsets[i][0],
+                        my: separation * offsets[i][1],
+                        sigma: sigma,
+                        w: w
+                    });
+                }
+            }
+            return comps;
+        }
+
+        // --- Math functions ---
+        function mixtureDensity(x, y, comps) {
+            let p = 0;
+            for (const c of comps) {
+                p += c.w * gaussian2D(x, y, c.mx, c.my, c.sigma);
+            }
+            return p;
+        }
+
+        function scoreAt(x, y, comps) {
+            // Compute score = nabla_x log p(x)
+            // = sum_k w_k * N(x;mu_k,sig_k) * (-(x-mu_k)/sig_k^2) / sum_k w_k * N(x;mu_k,sig_k)
+            let totalP = 0;
+            let sx = 0;
+            let sy = 0;
+            for (const c of comps) {
+                const g = c.w * gaussian2D(x, y, c.mx, c.my, c.sigma);
+                const s2 = c.sigma * c.sigma;
+                totalP += g;
+                sx += g * (-(x - c.mx) / s2);
+                sy += g * (-(y - c.my) / s2);
+            }
+            if (totalP < 1e-300) return { sx: 0, sy: 0 };
+            return { sx: sx / totalP, sy: sy / totalP };
+        }
+
+        // --- Coordinate transforms ---
+        function canvasW() { return parseFloat(canvas.style.width); }
+        function canvasH() { return parseFloat(canvas.style.height); }
+        function domainToCanvas(dx, dy) {
+            const w = canvasW();
+            const h = canvasH();
+            const px = (dx - DOMAIN_MIN) / DOMAIN_RANGE * w;
+            const py = (1 - (dy - DOMAIN_MIN) / DOMAIN_RANGE) * h;  // flip Y
+            return { px, py };
+        }
+        function canvasToDomain(px, py) {
+            const w = canvasW();
+            const h = canvasH();
+            const dx = DOMAIN_MIN + (px / w) * DOMAIN_RANGE;
+            const dy = DOMAIN_MIN + (1 - py / h) * DOMAIN_RANGE;
+            return { dx, dy };
+        }
+
+        // --- Viridis-like colormap ---
+        function viridisColor(t) {
+            // t in [0,1], 0 = dark blue/purple, 1 = bright yellow
+            t = Math.max(0, Math.min(1, t));
+            let r, g, b;
+            if (t < 0.25) {
+                const s = t / 0.25;
+                r = Math.round(68 * (1 - s) + 59 * s);
+                g = Math.round(1 * (1 - s) + 82 * s);
+                b = Math.round(84 * (1 - s) + 139 * s);
+            } else if (t < 0.5) {
+                const s = (t - 0.25) / 0.25;
+                r = Math.round(59 * (1 - s) + 33 * s);
+                g = Math.round(82 * (1 - s) + 145 * s);
+                b = Math.round(139 * (1 - s) + 140 * s);
+            } else if (t < 0.75) {
+                const s = (t - 0.5) / 0.25;
+                r = Math.round(33 * (1 - s) + 120 * s);
+                g = Math.round(145 * (1 - s) + 198 * s);
+                b = Math.round(140 * (1 - s) + 83 * s);
+            } else {
+                const s = (t - 0.75) / 0.25;
+                r = Math.round(120 * (1 - s) + 253 * s);
+                g = Math.round(198 * (1 - s) + 231 * s);
+                b = Math.round(83 * (1 - s) + 37 * s);
+            }
+            return { r, g, b };
+        }
+
+        // --- Heatmap ImageData cache ---
+        let heatmapImageData = null;
+
+        function computeHeatmap(comps) {
+            const w = Math.round(canvasW() * dpr);
+            const h = Math.round(canvasH() * dpr);
+            const imgData = ctx.createImageData(w, h);
+            const data = imgData.data;
+
+            // First pass: compute log densities to find range
+            const res = HEATMAP_RES;
+            const logVals = new Float64Array(res * res);
+            let logMin = Infinity;
+            let logMax = -Infinity;
+
+            for (let iy = 0; iy < res; iy++) {
+                for (let ix = 0; ix < res; ix++) {
+                    const dx = DOMAIN_MIN + (ix + 0.5) / res * DOMAIN_RANGE;
+                    const dy = DOMAIN_MAX - (iy + 0.5) / res * DOMAIN_RANGE;  // flip Y
+                    const p = mixtureDensity(dx, dy, comps);
+                    const logp = Math.log(Math.max(p, 1e-300));
+                    logVals[iy * res + ix] = logp;
+                    if (logp < logMin) logMin = logp;
+                    if (logp > logMax) logMax = logp;
+                }
+            }
+
+            // Clamp logMin to something reasonable
+            logMin = Math.max(logMin, logMax - 12);
+            const logRange = logMax - logMin;
+
+            // Second pass: render pixels
+            for (let py = 0; py < h; py++) {
+                for (let px = 0; px < w; px++) {
+                    // Map pixel to heatmap cell
+                    const ix = Math.floor(px / w * res);
+                    const iy = Math.floor(py / h * res);
+                    const clampedIx = Math.min(ix, res - 1);
+                    const clampedIy = Math.min(iy, res - 1);
+
+                    const logp = logVals[clampedIy * res + clampedIx];
+                    const t = logRange > 0 ? (logp - logMin) / logRange : 0;
+                    const col = viridisColor(t);
+
+                    const idx = (py * w + px) * 4;
+                    data[idx] = col.r;
+                    data[idx + 1] = col.g;
+                    data[idx + 2] = col.b;
+                    data[idx + 3] = 255;
+                }
+            }
+
+            heatmapImageData = imgData;
+        }
+
+        // --- Drawing ---
+        function drawHeatmap() {
+            if (!heatmapImageData) return;
+            ctx.putImageData(heatmapImageData, 0, 0);
+        }
+
+        function drawArrows(comps) {
+            const w = canvasW();
+            const h = canvasH();
+            const step = DOMAIN_RANGE / ARROW_GRID;
+            const maxArrowLen = w / ARROW_GRID * 0.8;
+
+            // Pre-compute max magnitude for normalization
+            let maxMag = 0;
+            const scores = [];
+            for (let iy = 0; iy < ARROW_GRID; iy++) {
+                for (let ix = 0; ix < ARROW_GRID; ix++) {
+                    const dx = DOMAIN_MIN + (ix + 0.5) * step;
+                    const dy = DOMAIN_MIN + (iy + 0.5) * step;
+                    const s = scoreAt(dx, dy, comps);
+                    const mag = Math.sqrt(s.sx * s.sx + s.sy * s.sy);
+                    scores.push({ dx, dy, sx: s.sx, sy: s.sy, mag });
+                    if (mag > maxMag) maxMag = mag;
+                }
+            }
+
+            for (const s of scores) {
+                if (s.mag < 1e-10) continue;
+
+                const { px, py } = domainToCanvas(s.dx, s.dy);
+
+                // Arrow length proportional to magnitude, clamped
+                const normMag = s.mag / maxMag;
+                const arrowLen = Math.min(normMag * maxArrowLen, maxArrowLen);
+
+                // Direction (note: canvas Y is flipped)
+                const dirX = s.sx / s.mag;
+                const dirY = -s.sy / s.mag;  // flip for canvas coords
+
+                const endX = px + dirX * arrowLen;
+                const endY = py + dirY * arrowLen;
+
+                // Opacity based on magnitude
+                const alpha = 0.15 + 0.85 * normMag;
+
+                // Draw arrow line
+                ctx.strokeStyle = 'rgba(255, 255, 255, ' + alpha + ')';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+
+                // Draw arrowhead
+                if (arrowLen > 3) {
+                    const headLen = Math.min(arrowLen * 0.35, 5);
+                    const headAngle = Math.PI / 6;
+                    const angle = Math.atan2(endY - py, endX - px);
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, ' + alpha + ')';
+                    ctx.beginPath();
+                    ctx.moveTo(endX, endY);
+                    ctx.lineTo(
+                        endX - headLen * Math.cos(angle - headAngle),
+                        endY - headLen * Math.sin(angle - headAngle)
+                    );
+                    ctx.lineTo(
+                        endX - headLen * Math.cos(angle + headAngle),
+                        endY - headLen * Math.sin(angle + headAngle)
+                    );
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawComponentCenters(comps) {
+            for (const c of comps) {
+                const { px, py } = domainToCanvas(c.mx, c.my);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 1.5;
+                // Small crosshair
+                const s = 6;
+                ctx.beginPath();
+                ctx.moveTo(px - s, py);
+                ctx.lineTo(px + s, py);
+                ctx.moveTo(px, py - s);
+                ctx.lineTo(px, py + s);
+                ctx.stroke();
+            }
+        }
+
+        function drawLangevinTrajectory() {
+            if (!langevinTrajectory || langevinTrajectory.length < 2) return;
+
+            const n = Math.min(langevinAnimFrame, langevinTrajectory.length);
+            if (n < 2) return;
+
+            // Draw trail with gradient from red to green
+            for (let i = 1; i < n; i++) {
+                const t = i / (langevinTrajectory.length - 1);
+                const r = Math.round(255 * (1 - t));
+                const g = Math.round(255 * t);
+                const alpha = 0.3 + 0.7 * (i / n);  // fade in as trail progresses
+
+                const prev = langevinTrajectory[i - 1];
+                const curr = langevinTrajectory[i];
+                const p0 = domainToCanvas(prev.x, prev.y);
+                const p1 = domainToCanvas(curr.x, curr.y);
+
+                ctx.strokeStyle = 'rgba(' + r + ',' + g + ', 80, ' + alpha + ')';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(p0.px, p0.py);
+                ctx.lineTo(p1.px, p1.py);
+                ctx.stroke();
+            }
+
+            // Draw starting point
+            const start = langevinTrajectory[0];
+            const sp = domainToCanvas(start.x, start.y);
+            ctx.fillStyle = '#ff4444';
+            ctx.beginPath();
+            ctx.arc(sp.px, sp.py, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw current particle position
+            if (n > 0) {
+                const curr = langevinTrajectory[n - 1];
+                const cp = domainToCanvas(curr.x, curr.y);
+                ctx.fillStyle = n >= langevinTrajectory.length ? '#44ff88' : '#ffaa00';
+                ctx.beginPath();
+                ctx.arc(cp.px, cp.py, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // --- Langevin dynamics ---
+        function computeLangevinTrajectory(startX, startY, comps) {
+            const traj = [{ x: startX, y: startY }];
+            let x = startX;
+            let y = startY;
+            const eta = LANGEVIN_ETA;
+            const sqrtEta = Math.sqrt(eta);
+
+            for (let i = 0; i < LANGEVIN_STEPS; i++) {
+                const s = scoreAt(x, y, comps);
+                x = x + (eta / 2) * s.sx + sqrtEta * randn();
+                y = y + (eta / 2) * s.sy + sqrtEta * randn();
+
+                // Clamp to domain
+                x = Math.max(DOMAIN_MIN + 0.1, Math.min(DOMAIN_MAX - 0.1, x));
+                y = Math.max(DOMAIN_MIN + 0.1, Math.min(DOMAIN_MAX - 0.1, y));
+
+                traj.push({ x, y });
+            }
+
+            return traj;
+        }
+
+        function startLangevinAnimation() {
+            if (langevinAnimId) cancelAnimationFrame(langevinAnimId);
+            langevinAnimFrame = 0;
+
+            function step() {
+                langevinAnimFrame += 3;  // animate ~3 steps per frame for speed
+                if (langevinAnimFrame > langevinTrajectory.length) {
+                    langevinAnimFrame = langevinTrajectory.length;
+                }
+                draw();
+                if (langevinAnimFrame < langevinTrajectory.length) {
+                    langevinAnimId = requestAnimationFrame(step);
+                } else {
+                    langevinAnimId = null;
+                    document.getElementById('statusBar').textContent =
+                        'Trayectoria completa (' + langevinTrajectory.length + ' pasos). Haz clic para reiniciar.';
+                }
+            }
+
+            langevinAnimId = requestAnimationFrame(step);
+        }
+
+        // --- Main draw ---
+        function draw() {
+            const w = canvasW();
+            const h = canvasH();
+            const comps = getComponents();
+
+            // Clear canvas
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, w, h);
+
+            // Heatmap
+            if (showHeatmap) {
+                drawHeatmap();
+            }
+
+            // Score arrows
+            if (showArrows) {
+                drawArrows(comps);
+            }
+
+            // Component centers
+            drawComponentCenters(comps);
+
+            // Langevin trajectory
+            if (showLangevin && langevinTrajectory) {
+                drawLangevinTrajectory();
+            }
+
+            // Axis labels
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            // X axis tick marks
+            for (let v = -4; v <= 4; v += 2) {
+                const { px, py } = domainToCanvas(v, DOMAIN_MIN);
+                ctx.fillText(v.toString(), px, py - 14);
+            }
+            // Y axis tick marks
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let v = -4; v <= 4; v += 2) {
+                const { px, py } = domainToCanvas(DOMAIN_MIN, v);
+                ctx.fillText(v.toString(), px + 18, py);
+            }
+        }
+
+        function fullRedraw() {
+            const comps = getComponents();
+            if (showHeatmap) {
+                computeHeatmap(comps);
+            }
+            draw();
+        }
+
+        // --- Events ---
+        function setupControls() {
+            const nCompInput = document.getElementById('nComp');
+            const sepInput = document.getElementById('sep');
+            const sigmaInput = document.getElementById('sigma');
+            const heatmapToggle = document.getElementById('showHeatmap');
+            const arrowsToggle = document.getElementById('showArrows');
+            const langevinToggle = document.getElementById('showLangevin');
+
+            nCompInput.addEventListener('input', function() {
+                nComponents = parseInt(this.value);
+                document.getElementById('nComp-val').textContent = nComponents;
+                clearLangevin();
+                fullRedraw();
+            });
+
+            sepInput.addEventListener('input', function() {
+                separation = parseFloat(this.value);
+                document.getElementById('sep-val').textContent = separation.toFixed(1);
+                clearLangevin();
+                fullRedraw();
+            });
+
+            sigmaInput.addEventListener('input', function() {
+                sigma = parseFloat(this.value);
+                document.getElementById('sigma-val').textContent = sigma.toFixed(2);
+                clearLangevin();
+                fullRedraw();
+            });
+
+            heatmapToggle.addEventListener('change', function() {
+                showHeatmap = this.checked;
+                if (showHeatmap) {
+                    computeHeatmap(getComponents());
+                }
+                draw();
+            });
+
+            arrowsToggle.addEventListener('change', function() {
+                showArrows = this.checked;
+                draw();
+            });
+
+            langevinToggle.addEventListener('change', function() {
+                showLangevin = this.checked;
+                if (!showLangevin) {
+                    clearLangevin();
+                    draw();
+                } else {
+                    document.getElementById('statusBar').textContent =
+                        'Haz clic en el canvas para iniciar la trayectoria de Langevin.';
+                }
+            });
+        }
+
+        function clearLangevin() {
+            if (langevinAnimId) {
+                cancelAnimationFrame(langevinAnimId);
+                langevinAnimId = null;
+            }
+            langevinTrajectory = null;
+            langevinAnimFrame = 0;
+            document.getElementById('statusBar').textContent = '';
+        }
+
+        // Canvas click -> start Langevin
+        canvas.addEventListener('click', function(e) {
+            if (!showLangevin) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const { dx, dy } = canvasToDomain(cx, cy);
+
+            const comps = getComponents();
+            langevinTrajectory = computeLangevinTrajectory(dx, dy, comps);
+            document.getElementById('statusBar').textContent =
+                'Simulando dinamica de Langevin desde (' + dx.toFixed(1) + ', ' + dy.toFixed(1) + ')...';
+            startLangevinAnimation();
+        });
+
+        // Mouse move: show coordinates
+        canvas.addEventListener('mousemove', function(e) {
+            if (showLangevin && langevinAnimId) return;  // don't overwrite animation status
+            const rect = canvas.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const { dx, dy } = canvasToDomain(cx, cy);
+            const comps = getComponents();
+            const s = scoreAt(dx, dy, comps);
+            const mag = Math.sqrt(s.sx * s.sx + s.sy * s.sy);
+            const statusText = 'x = (' + dx.toFixed(2) + ', ' + dy.toFixed(2) + ')' +
+                '  |  score = (' + s.sx.toFixed(2) + ', ' + s.sy.toFixed(2) + ')' +
+                '  |  |score| = ' + mag.toFixed(2);
+
+            if (showLangevin && !langevinAnimId) {
+                document.getElementById('statusBar').textContent = statusText +
+                    '  —  Haz clic para lanzar particula';
+            } else {
+                document.getElementById('statusBar').textContent = statusText;
+            }
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            if (!langevinAnimId) {
+                if (showLangevin) {
+                    document.getElementById('statusBar').textContent =
+                        'Haz clic en el canvas para iniciar la trayectoria de Langevin.';
+                } else {
+                    document.getElementById('statusBar').textContent = '';
+                }
+            }
+        });
+
+        // Resize handler
+        window.addEventListener('resize', function() {
+            resizeCanvas();
+            fullRedraw();
+        });
+
+        // --- Init ---
+        setupControls();
+        fullRedraw();
+    }
+    </script>
+</body>
+</html>
