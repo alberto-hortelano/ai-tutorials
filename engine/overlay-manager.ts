@@ -119,7 +119,7 @@ export class OverlayManager {
     // Iframe
     const iframe = document.createElement('iframe');
     iframe.className = 'interaction-iframe';
-    iframe.src = data.src;
+    iframe.src = import.meta.env.BASE_URL + data.src.replace(/^\//, '');
     iframe.sandbox.add('allow-scripts', 'allow-same-origin');
     wrap.appendChild(iframe);
 

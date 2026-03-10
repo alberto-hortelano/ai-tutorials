@@ -261,7 +261,7 @@ async function loadApunte(apunte: Apunte): Promise<void> {
   contentEl.innerHTML = '<div class="apuntes-empty">Cargando...</div>';
 
   try {
-    const resp = await fetch(apunte.path);
+    const resp = await fetch(import.meta.env.BASE_URL + apunte.path.replace(/^\//, ''));
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const md = await resp.text();
     activeMarkdown = md;

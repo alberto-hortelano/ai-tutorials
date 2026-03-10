@@ -174,7 +174,7 @@ if (statReady) statReady.textContent = String(LESSONS.filter(l => l.ready).lengt
 if (statModules) statModules.textContent = String(MODULES.length);
 
 // ── ElevenLabs audio badges ──
-fetch('/audio/es/manifest.json')
+fetch(`${import.meta.env.BASE_URL}audio/es/manifest.json`)
   .then(r => r.ok ? r.json() : null)
   .then((manifest: { entries: Record<string, unknown> } | null) => {
     if (!manifest) return;

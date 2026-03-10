@@ -216,7 +216,7 @@ export class StaticTTSProvider implements VoiceProvider {
       }
 
       // Serve static file
-      const resp = await fetch(`/audio/es/${entry.file}`);
+      const resp = await fetch(`${import.meta.env.BASE_URL}audio/es/${entry.file}`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -311,7 +311,7 @@ export class StaticTTSProvider implements VoiceProvider {
 
   private _loadManifest(): Promise<Manifest | null> {
     if (!this._manifestPromise) {
-      this._manifestPromise = fetch('/audio/es/manifest.json')
+      this._manifestPromise = fetch(`${import.meta.env.BASE_URL}audio/es/manifest.json`)
         .then(r => r.ok ? r.json() as Promise<Manifest> : null)
         .catch(() => null);
     }
