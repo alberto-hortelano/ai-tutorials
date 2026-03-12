@@ -295,6 +295,7 @@ function connectWs(): void {
     reconnectDelay = 1000;
     setStatus(true);
     console.log('[tutor] WebSocket connected');
+    ws!.send(JSON.stringify({ type: 'hello' }));
   };
 
   ws.onclose = () => {

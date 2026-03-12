@@ -109,7 +109,7 @@ async function main() {
 
   server.tool(
     'tutor_listen',
-    'Block until the user types a question in the tutor browser page. Returns the question text. Use this in a loop to run an interactive tutor session.',
+    'Block until the user types a question in the tutor browser page. Returns the question text.\n\nIMPORTANT: To start a tutor session, call tutor_listen FIRST and wait for the user to ask a question. Then respond with tutor_answer (and optionally tutor_chart / tutor_interactive). Repeat in a loop:\n1. tutor_listen  →  get user question\n2. tutor_answer  →  send response\n3. goto 1',
     {},
     async () => {
       try {

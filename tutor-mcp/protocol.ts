@@ -69,7 +69,11 @@ export interface UserQuestionMsg {
   text: string;
 }
 
-export type ClientMsg = AckMsg | ErrorMsg | UserQuestionMsg;
+export interface HelloMsg {
+  type: 'hello';
+}
+
+export type ClientMsg = AckMsg | ErrorMsg | UserQuestionMsg | HelloMsg;
 
 // ── Peer-to-peer (process ↔ process) ──
 
