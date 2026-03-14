@@ -1,8 +1,8 @@
 # Score Matching
 
-Estos apuntes explican en profundidad **score matching**, una familia de tecnicas para entrenar modelos generativos sin necesidad de calcular la constante de normalizacion. Score matching es la base conceptual de los modelos de difusion (DDPM, DDIM) que estudiaremos en el PS4.
+Estos apuntes explican en profundidad **score matching**, una familia de tecnicas para entrenar modelos generativos sin necesidad de calcular la constante de normalizacion. Score matching es la base conceptual de los modelos de difusion (DDPM, DDIM).
 
-Basados en las notas del curso y en el PS4, secciones 1-3.
+Basados en las notas del curso.
 
 ---
 
@@ -105,7 +105,7 @@ $$\mathcal{J}(\theta) = \frac{1}{2} \mathbb{E}_{p_\text{data}(\mathbf{x})}\left[
 | $\mathbb{E}_{p_\text{data}}$ | Promediamos sobre todos los datos reales |
 | $\frac{1}{2}$ | Factor de conveniencia (simplifica las derivadas) |
 
-Esta es la ecuacion (5) del PS4, que tambien aparece como ecuacion (1) con la notacion $L(\theta)$.
+Esta es la ecuacion (5), que tambien aparece como ecuacion (1) con la notacion $L(\theta)$.
 
 ### 2.2 El problema: no conocemos el score verdadero
 
@@ -142,7 +142,7 @@ $$\mathcal{J}(\theta) = \mathbb{E}_{p_\text{data}(\mathbf{x})}\left[\frac{1}{2}\
 
 **Como se lee:** "jota de theta es la esperanza bajo pe-data de: un medio de la norma al cuadrado de ese-theta de equis, mas la traza de nabla-equis de ese-theta de equis; todo mas una constante ce."
 
-Esta es la ecuacion (6) del PS4.
+Esta es la ecuacion (6).
 
 ### 3.2 Cada termino explicado
 
@@ -209,7 +209,7 @@ $$\text{Tr}(A) \approx \frac{1}{m}\sum_{j=1}^{m} \mathbf{z}_j^\top A \mathbf{z}_
 
 **Como se lee:** "La traza de A se aproxima como el promedio de $m$ productos cuadraticos zeta-jota-traspuesta por A por zeta-jota."
 
-Esta es la ecuacion (7) del PS4.
+Esta es la ecuacion (7).
 
 **Que significa cada parte:**
 
@@ -256,7 +256,7 @@ $$\mathcal{J}_\text{sliced}(\theta) = \mathbb{E}_{\mathbf{v}}\mathbb{E}_{p_\text
 
 **Como se lee:** "jota-sliced de theta es la esperanza sobre ve, de la esperanza bajo pe-data, de: un medio del cuadrado de ve-traspuesta ese-theta de equis, mas ve-traspuesta nabla-equis de ese-theta de equis por ve."
 
-Esto viene del PS4 Q3b.
+Esta es la formulacion de sliced score matching.
 
 ### 5.2 Cada termino explicado
 
@@ -299,7 +299,7 @@ $$\mathcal{L}_\text{DSM} = \mathbb{E}_{\mathbf{x} \sim p_\text{data}} \mathbb{E}
 
 **Como se lee:** "ele-DSM es la esperanza sobre equis muestreado de pe-data, de la esperanza sobre zeta muestreado de una normal con media cero y varianza sigma cuadrado por identidad, de la norma al cuadrado de: ese-theta de equis mas zeta, mas zeta sobre sigma cuadrado."
 
-Esta es la ecuacion (8) del PS4.
+Esta es la ecuacion (8).
 
 ### 6.3 Cada parte explicada
 
@@ -359,7 +359,7 @@ $$\mathbb{E}[\mathbf{x} \mid \tilde{\mathbf{x}}] = \tilde{\mathbf{x}} + \sigma^2
 **Implicaciones:**
 1. Si $s_\theta(\tilde{\mathbf{x}}) \approx \nabla \log q_\sigma(\tilde{\mathbf{x}})$, entonces $\hat{\mathbf{x}}_0 \approx \tilde{\mathbf{x}} + \sigma^2 s_\theta(\tilde{\mathbf{x}})$ es el denoiser optimo.
 2. Entrenar un score model con DSM es equivalente a entrenar un denoising autoencoder optimo.
-3. En modelos de difusion, esta formula conecta directamente la prediccion de ruido $\epsilon_\theta$ con la estimacion de $x_0$ (la funcion `predict_x0` del PS4).
+3. En modelos de difusion, esta formula conecta directamente la prediccion de ruido $\epsilon_\theta$ con la estimacion de $x_0$ (la funcion `predict_x0`).
 
 ### 6.7 El rol de $\sigma$
 
@@ -378,7 +378,7 @@ Este compromiso motiva el enfoque **multi-escala** de la seccion 8.
 
 ### 7.1 El problema: no hay gradientes en espacios discretos
 
-Score matching clasico usa $\nabla_x \log p(x)$, que es un **gradiente continuo**. Si los datos viven en un espacio discreto como $\{0,1\}^d$ (por ejemplo, texto, grafos, datos binarios), no podemos tomar gradientes. Concrete score matching (PS4 Q2) extiende la idea a datos discretos.
+Score matching clasico usa $\nabla_x \log p(x)$, que es un **gradiente continuo**. Si los datos viven en un espacio discreto como $\{0,1\}^d$ (por ejemplo, texto, grafos, datos binarios), no podemos tomar gradientes. Concrete score matching extiende la idea a datos discretos.
 
 ### 7.2 Vecindarios y distancia de Hamming
 
@@ -388,7 +388,7 @@ $$\mathcal{N}(\mathbf{x}) = \{\mathbf{x}' \in \mathcal{X} : \text{Hamming}(\math
 
 **Como se lee:** "El vecindario de equis es el conjunto de equis-prima en el espacio X tales que la distancia de Hamming entre equis y equis-prima es 1."
 
-Esta es la ecuacion (2) del PS4. Para datos binarios de dimension $d$, cada punto tiene exactamente $d$ vecinos (uno por cada bit que se puede voltear).
+Esta es la ecuacion (2). Para datos binarios de dimension $d$, cada punto tiene exactamente $d$ vecinos (uno por cada bit que se puede voltear).
 
 ### 7.3 El concrete score
 
@@ -398,7 +398,7 @@ $$c_{p_\text{data}}(\mathbf{x}; \mathcal{N}) \triangleq \left[\frac{p_\text{data
 
 **Como se lee:** "ce-pe-data de equis es un vector cuya componente $k$-esima es pe-data del vecino $k$-esimo menos pe-data de equis, todo dividido por pe-data de equis."
 
-Esta es la ecuacion (3) del PS4.
+Esta es la ecuacion (3).
 
 **Que significa cada componente:**
 
@@ -416,7 +416,7 @@ $$\mathcal{L}_\text{CSM}(\theta) = \sum_{\mathbf{x}} p_\text{data}(\mathbf{x}) \
 
 **Como se lee:** "ele-CSM de theta es la suma sobre todos los equis de pe-data de equis por la norma al cuadrado de la diferencia entre el concrete score del modelo y el concrete score de los datos."
 
-Esta es la ecuacion (4) del PS4.
+Esta es la ecuacion (4).
 
 ### 7.5 Tractabilidad y escalabilidad
 
@@ -426,7 +426,7 @@ Esta es la ecuacion (4) del PS4.
 | $k = 2$ | $\binom{d}{2}$ vecinos | $O(d^2)$ -- costoso |
 | $k$ general | $\binom{d}{k}$ vecinos | $O(d^k / k!)$ -- intratable rapidamente |
 
-Del PS4 Q2b: con Hamming $k$, el vecindario crece como $O(\binom{d}{k})$, que se vuelve intratable para $k$ grande. En la practica se usa Monte Carlo para aproximar la suma sobre el espacio $\mathcal{X}$.
+Con Hamming $k$, el vecindario crece como $O(\binom{d}{k})$, que se vuelve intratable para $k$ grande. En la practica se usa Monte Carlo para aproximar la suma sobre el espacio $\mathcal{X}$.
 
 ---
 
@@ -584,14 +584,14 @@ Score Matching: Mapa conceptual
 │Hyvarinen│  │ Denoising│           │ Concrete │
 │   SM    │  │    SM    │           │    SM    │
 │ Tr(J)   │  │  -z/s^2  │           │ discreto │
-│eq.(6)PS4│  │ eq.(8)PS4│           │ eq.(3)PS4│
+│ eq.(6)  │  │ eq.(8)  │           │ eq.(3)  │
 └────┬────┘  └──────────┘           └──────────┘
      |
 ┌────┼────────┐
 |              |
 v              v
 Hutchinson   Sliced SM
- eq.(7)PS4    Q3b PS4
+ eq.(7)     Sliced SM
 ```
 
 ---

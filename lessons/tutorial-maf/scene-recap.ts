@@ -1,4 +1,4 @@
-// Scene 9: Recap — Summary of log p(x) computation, PS3 exercise overview, key concepts
+// Scene 9: Recap — Summary of log p(x) computation, exercise overview, key concepts
 
 import { Scene } from '../../engine/scene';
 import { colors, series, fonts } from '../../engine/shared/design-tokens';
@@ -77,18 +77,18 @@ export const scene9 = new Scene({
         50, 46, fP, { color: colors.textPrimary, fontSize: '1em' });
     }
 
-    // ─── PS3 Exercise table ───
-    const ps3P = easedSub(progress, 0.42, 0.68);
-    if (ps3P > 0) {
+    // ─── Exercise table ───
+    const exP = easedSub(progress, 0.42, 0.68);
+    if (exP > 0) {
       const tableY = H * 0.55;
       const tableX = W * 0.15;
       const tableW = W * 0.7;
       const rowH = 26;
 
       ctx.save();
-      ctx.globalAlpha = ps3P;
+      ctx.globalAlpha = exP;
 
-      fadeInText(ctx, tx('scene9', 'ps3Title'), W / 2, tableY - 8, ps3P, {
+      fadeInText(ctx, tx('scene9', 'exerciseTitle'), W / 2, tableY - 8, exP, {
         color: colors.accent, font: `bold 13px ${fonts.body}`
       });
 
@@ -103,7 +103,7 @@ export const scene9 = new Scene({
         if (pp <= 0) return;
 
         const py = tableY + 8 + i * rowH;
-        ctx.globalAlpha = pp * ps3P;
+        ctx.globalAlpha = pp * exP;
 
         ctx.fillStyle = part.color + '10';
         ctx.strokeStyle = part.color;

@@ -4,7 +4,7 @@ Este documento sintetiza **todas las familias de modelos generativos profundos**
 
 No repite las explicaciones completas de cada familia (para eso estan los apuntes individuales), sino que las pone lado a lado para entender el **panorama completo**: que resuelve cada una, que sacrifica, y como se relacionan entre si.
 
-Basado en las notas del curso, los PS1-PS4, y los apuntes en esta carpeta.
+Basado en las notas del curso y los apuntes en esta carpeta.
 
 ---
 
@@ -82,8 +82,7 @@ Este diagrama muestra como se organizan todas las familias de modelos generativo
             ┌─────┴─────┐      ┌─────┴─────┐      ┌─────┴─────┐
             │           │      │           │      │           │
        Autoregresivos Flujos  VAEs       EBMs   GANs     Score-based
-       (PS1)        (PS3-Q1) (PS2)    (Mod 5)  (PS3)    / Difusion
-                                                          (PS4)
+                                                          / Difusion
 ```
 
 ### Relaciones entre ramas
@@ -121,7 +120,6 @@ Esta es la tabla central de este documento. Resume las propiedades de cada famil
 | **Estabilidad de entrenamiento** | Alta | Alta | Alta | **Baja** | Media | Alta | Alta |
 | **Metrica de progreso** | Log-likelihood | ELBO | Log-likelihood | Ninguna clara | — | Fisher divergence | ELBO variacional |
 | **Restricciones arquitectonicas** | Ordenamiento causal | Encoder + Decoder | Invertible, $\dim z = \dim x$ | Generador + Discriminador | Cualquier red | Cualquier red | UNet (tipicamente) |
-| **PS del curso** | PS1 | PS2 | PS3 (Q1) | PS3 (Q2-5) | — | PS4 (Q1-3) | PS4 (Q4-5) |
 
 ### Notas sobre la tabla
 
@@ -156,7 +154,7 @@ del anterior                       p(x₁)p(x₂|x₁)··· p(xₙ|x<ₙ)
 
 **Modelos representativos:** NADE, MADE, PixelRNN, PixelCNN, WaveNet, GPT.
 
-**Referencia:** [vae.md](vae.md) seccion 1.1 para el contexto, PS1 para la implementacion.
+**Referencia:** [vae.md](vae.md) seccion 1.1 para el contexto.
 
 ---
 
@@ -170,7 +168,7 @@ El codificador $q_\phi(\mathbf{z}|\mathbf{x})$ aproxima la posterior intratable 
 
 **Compromiso fundamental:** Muestreo rapido y espacio latente interpretable, pero muestras borrosas. El VAE minimiza $D_\text{KL}(q \| p)$ (KL forward), que es **mode-covering**: la distribucion aprendida intenta cubrir todos los modos, promediando entre ellos y produciendo muestras difusas.
 
-**Variantes del curso:** GMVAE, IWAE, Semi-supervised VAE, Factor-separated VAE (PS2).
+**Variantes del curso:** GMVAE, IWAE, Semi-supervised VAE, Factor-separated VAE.
 
 **Referencia:** [vae.md](vae.md) para la explicacion completa.
 
@@ -223,7 +221,7 @@ z ~ N(0,I) ──► G(z) ──┐     ┌── x_real ──► D(x) ──�
                se equivoque           correctamente
 ```
 
-**Variantes del curso:** f-GAN, WGAN, WGAN-GP, GAN condicional (PS3).
+**Variantes del curso:** f-GAN, WGAN, WGAN-GP, GAN condicional.
 
 **Referencia:** [gans.md](gans.md) para la explicacion completa.
 

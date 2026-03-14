@@ -121,7 +121,7 @@ export interface ChatProvider {
 
 export interface LessonTag {
   label: string;
-  type: 'ps' | 'topic';
+  type: 'topic';
 }
 
 export interface LessonEntry {

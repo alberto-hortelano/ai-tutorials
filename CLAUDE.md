@@ -40,7 +40,7 @@ Shared libraries in `public/interactives/shared/`:
 
 - **`apuntes-manifest.ts`**: Registry of all markdown notes with `{id, title, path, topic}`
 - **`apuntes-main.ts`**: Lightweight markdown renderer (headers, lists, tables, blockquotes, code, KaTeX) + sidebar + hash routing
-- **`public/apuntes/`**: 20 concept notes + 20 exercise explanations (PS1-PS4) in Spanish markdown with LaTeX
+- **`public/apuntes/`**: 20 concept notes in Spanish markdown with LaTeX
 
 ### Engine (`engine/`)
 

@@ -2,7 +2,7 @@
 
 Estos apuntes explican la teoria de los **modelos de difusion**, una familia de modelos generativos profundos que aprenden a generar datos invirtiendo un proceso gradual de destruccion por ruido. Cubren DDPM (Denoising Diffusion Probabilistic Models) y DDIM (Denoising Diffusion Implicit Models).
 
-Basados en las notas del curso y el material del PS4: Score Matching, DDPM, DDIM e Inpainting.
+Basados en las notas del curso.
 
 ---
 
@@ -40,9 +40,9 @@ Antes de empezar, aqui tienes una tabla con los simbolos que vas a ver una y otr
 
 En el curso hemos estudiado tres familias de modelos generativos:
 
-**Modelos autorregresivos** (PS1): factorizan la distribucion como producto de condicionales.
-**VAEs** (PS2): introducen variables latentes y optimizan el ELBO.
-**Flujos normalizantes y GANs** (PS3): transformaciones invertibles y entrenamiento adversario.
+**Modelos autorregresivos**: factorizan la distribucion como producto de condicionales.
+**VAEs**: introducen variables latentes y optimizan el ELBO.
+**Flujos normalizantes y GANs**: transformaciones invertibles y entrenamiento adversario.
 
 ### 1.2 Fortalezas y debilidades
 
@@ -263,7 +263,7 @@ $$\hat{x}_0 = \frac{x_t - \sqrt{1 - \bar{\alpha}_t} \, \epsilon_\theta(x_t, t)}{
 
 Simplemente estamos **invirtiendo** la formula del proceso forward. Si sabemos cuanto ruido se anadio ($\epsilon_\theta$), podemos restar ese ruido (escalado) de $x_t$ para recuperar una estimacion de $x_0$.
 
-**Nota sobre PS4:** Esta es la funcion `predict_x0` que hay que implementar.
+Esta es la funcion `predict_x0`.
 
 #### Simbolo por simbolo
 
@@ -340,7 +340,7 @@ La media es una **combinacion ponderada** de la imagen original $x_0$ y la image
 | $x_0$ | La imagen limpia (en la practica, la reemplazamos por $\hat{x}_0$) |
 | $x_t$ | La imagen ruidosa actual |
 
-**Nota sobre PS4:** Esta es la funcion `compute_forward_posterior_mean`.
+Esta es la funcion `compute_forward_posterior_mean`.
 
 ### 5.3 La varianza de la posterior forward
 
@@ -354,7 +354,7 @@ $$\tilde{\beta}_t = \frac{1 - \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t} \, \beta_t
 
 La varianza esta completamente determinada por el schedule de ruido. No depende de los datos ni de la red neuronal. Es simplemente una combinacion de los coeficientes del schedule.
 
-**Nota sobre PS4:** Esta es la funcion `compute_forward_posterior_variance`.
+Esta es la funcion `compute_forward_posterior_variance`.
 
 ### 5.4 El algoritmo completo de muestreo DDPM
 
@@ -408,7 +408,7 @@ $$x_{t-1} = \underbrace{\sqrt{\bar{\alpha}_{t-1}} \, \hat{x}_0}_{\text{predicted
 
 #### Que significa cada termino
 
-| Termino | Nombre en PS4 | Que hace |
+| Termino | Nombre | Que hace |
 |---------|---------------|---------|
 | $\sqrt{\bar{\alpha}_{t-1}} \, \hat{x}_0$ | (escalado de `predict_x0`) | Apunta hacia la imagen limpia estimada, escalada al nivel de ruido del paso $t-1$ |
 | $\sqrt{1 - \bar{\alpha}_{t-1} - \sigma_t^2} \, \epsilon_\theta(x_t, t)$ | `predict_sample_direction` | "Direccion" hacia la que la muestra debe moverse, basada en el ruido predicho |
@@ -432,7 +432,7 @@ El parametro $\eta$ (eta) controla **cuanta estocasticidad** tiene el proceso re
 | $\eta = 1$ | Equivalente a DDPM | DDPM clasico |
 | $0 < \eta < 1$ | Parcialmente estocastico | Interpolacion entre DDIM y DDPM |
 
-**Nota sobre PS4:** Esta es la funcion `get_stochasticity_std`.
+Esta es la funcion `get_stochasticity_std`.
 
 ### 6.4 La ventaja clave: saltar pasos
 
@@ -538,7 +538,7 @@ Entrenamiento          Muestreo (opcion A)      Muestreo (opcion B)
 
 ### 8.1 El problema
 
-Dado una imagen con una region faltante (oculta, danada, borrada), queremos generar contenido **coherente** para rellenar esa region. Esto corresponde al ejercicio 5 del PS4.
+Dado una imagen con una region faltante (oculta, danada, borrada), queremos generar contenido **coherente** para rellenar esa region.
 
 ### 8.2 La mascara binaria
 
@@ -669,7 +669,7 @@ Predecir el ruido y estimar el score son **la misma cosa** (salvo un factor de e
 
 ### 9.3 Por que importa esta conexion
 
-1. **Unificacion teorica:** Los modelos de difusion (DDPM/DDIM) y los modelos basados en score (score matching, Langevin dynamics) son **dos formas de ver lo mismo**. Esto explica por que PS4 cubre ambos temas.
+1. **Unificacion teorica:** Los modelos de difusion (DDPM/DDIM) y los modelos basados en score (score matching, Langevin dynamics) son **dos formas de ver lo mismo**.
 
 2. **Intuicion geometrica:** Si la score apunta hacia los datos, el proceso reverse de difusion es esencialmente **seguir la score** desde el ruido hasta los datos, paso a paso.
 

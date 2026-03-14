@@ -267,7 +267,7 @@
             if (ratio < 1.5) {
                 box.innerHTML = 'Con esta separacion (<strong>' + sep.toFixed(1) + '</strong>) y sigmas (<strong>' + avgSigma.toFixed(1) + '</strong>), la mezcla es esencialmente <strong>unimodal</strong>: los dos componentes se fusionan en un solo pico. Una sola Gaussiana podria aproximarla bien.';
             } else if (ratio < 3) {
-                box.innerHTML = 'La mezcla muestra un <strong>hombro</strong> o <strong>bimodalidad incipiente</strong>. La separacion relativa (' + ratio.toFixed(1) + 'x sigma) no es suficiente para crear dos picos claramente separados. En un GMVAE (PS2), esto corresponderia a clusters parcialmente solapados.';
+                box.innerHTML = 'La mezcla muestra un <strong>hombro</strong> o <strong>bimodalidad incipiente</strong>. La separacion relativa (' + ratio.toFixed(1) + 'x sigma) no es suficiente para crear dos picos claramente separados. En un GMVAE, esto corresponderia a clusters parcialmente solapados.';
             } else {
                 box.innerHTML = 'Con separacion ' + sep.toFixed(1) + ' y sigmas ~' + avgSigma.toFixed(1) + ', la mezcla es claramente <strong>bimodal</strong>. Cada componente forma un pico distinto. Esta es la estructura multimodal que una sola Gaussiana <strong>no puede representar</strong> — de ahi la necesidad de mezclas como prior en el GMVAE.';
             }

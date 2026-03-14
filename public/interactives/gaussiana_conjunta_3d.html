@@ -248,7 +248,7 @@
 <div class="insight">
   <h3>Prior multimodal del GMVAE</h3>
   <p>
-    En el GMVAE (Ec. 7 de PS2), el prior ya no es una sola Gaussiana sino una mezcla:
+    En el GMVAE, el prior ya no es una sola Gaussiana sino una mezcla:
     <code>p(z) = (1/K) &Sigma; N(z | &mu;&#x2096;, diag(&sigma;&#x2096;&sup2;))</code>.
     Cada componente representa un "cluster" en el espacio latente — por ejemplo, un tipo de d&iacute;gito en MNIST.
     Los pesos son uniformes <code>(1/K)</code>, y la KL entre el encoder <code>q(z|x)</code>

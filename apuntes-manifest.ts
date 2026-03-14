@@ -36,32 +36,4 @@ export const APUNTES: Apunte[] = [
 
   // ── Cheat sheet ──
   { id: 'cheat-sheet', title: 'Cheat Sheet', path: '/apuntes/cheat-sheet.md', topic: 'Referencia' },
-
-  // ── PS1 ──
-  { id: 'ps1-ex1', title: 'PS1 Ex1 — MLE y KL', path: '/apuntes/PS-1/ex1.md', topic: 'PS1', prereqs: ['mle', 'kl-divergence'] },
-  { id: 'ps1-ex2', title: 'PS1 Ex2 — Naive Bayes', path: '/apuntes/PS-1/ex2.md', topic: 'PS1', prereqs: ['mle', 'independencia-condicional'] },
-  { id: 'ps1-ex3', title: 'PS1 Ex3 — Indep. Condicional', path: '/apuntes/PS-1/ex3.md', topic: 'PS1', prereqs: ['independencia-condicional'] },
-  { id: 'ps1-ex4', title: 'PS1 Ex4 — Autoregresivos', path: '/apuntes/PS-1/ex4.md', topic: 'PS1', prereqs: ['autoregresivos'] },
-  { id: 'ps1-ex5', title: 'PS1 Ex5 — Monte Carlo', path: '/apuntes/PS-1/ex5.md', topic: 'PS1', prereqs: ['metodos-monte-carlo'] },
-  { id: 'ps1-ex6', title: 'PS1 Ex6 — Codigo', path: '/apuntes/PS-1/ex6.md', topic: 'PS1', prereqs: ['autoregresivos'] },
-
-  // ── PS2 ──
-  { id: 'ps2-ex1', title: 'PS2 Ex1 — VAE', path: '/apuntes/PS-2/ex1.md', topic: 'PS2', prereqs: ['vae'] },
-  { id: 'ps2-ex2', title: 'PS2 Ex2 — GMVAE', path: '/apuntes/PS-2/ex2.md', topic: 'PS2', prereqs: ['vae'] },
-  { id: 'ps2-ex3', title: 'PS2 Ex3 — IWAE', path: '/apuntes/PS-2/ex3.md', topic: 'PS2', prereqs: ['vae', 'metodos-monte-carlo'] },
-  { id: 'ps2-ex4', title: 'PS2 Ex4 — Semi-Supervised VAE', path: '/apuntes/PS-2/ex4.md', topic: 'PS2', prereqs: ['vae'] },
-
-  // ── PS3 ──
-  { id: 'ps3-ex1', title: 'PS3 Ex1 — Normalizing Flows', path: '/apuntes/PS-3/ex1.md', topic: 'PS3', prereqs: ['flujos'] },
-  { id: 'ps3-ex2', title: 'PS3 Ex2 — GANs', path: '/apuntes/PS-3/ex2.md', topic: 'PS3', prereqs: ['gans'] },
-  { id: 'ps3-ex3', title: 'PS3 Ex3 — Divergence Minimization', path: '/apuntes/PS-3/ex3.md', topic: 'PS3', prereqs: ['gans', 'f-divergencias'] },
-  { id: 'ps3-ex4', title: 'PS3 Ex4 — Conditional GAN', path: '/apuntes/PS-3/ex4.md', topic: 'PS3', prereqs: ['gans'] },
-  { id: 'ps3-ex5', title: 'PS3 Ex5 — Wasserstein GAN', path: '/apuntes/PS-3/ex5.md', topic: 'PS3', prereqs: ['gans', 'wasserstein'] },
-
-  // ── PS4 ──
-  { id: 'ps4-ex1', title: 'PS4 Ex1 — Score Matching', path: '/apuntes/PS-4/ex1.md', topic: 'PS4', prereqs: ['score-matching'] },
-  { id: 'ps4-ex2', title: 'PS4 Ex2 — Concrete Score Matching', path: '/apuntes/PS-4/ex2.md', topic: 'PS4', prereqs: ['score-matching'] },
-  { id: 'ps4-ex3', title: 'PS4 Ex3 — Score-Based Diffusion', path: '/apuntes/PS-4/ex3.md', topic: 'PS4', prereqs: ['score-matching'] },
-  { id: 'ps4-ex4', title: 'PS4 Ex4 — DDPM y DDIM', path: '/apuntes/PS-4/ex4.md', topic: 'PS4', prereqs: ['difusion'] },
-  { id: 'ps4-ex5', title: 'PS4 Ex5 — Inpainting', path: '/apuntes/PS-4/ex5.md', topic: 'PS4', prereqs: ['difusion'] },
 ];

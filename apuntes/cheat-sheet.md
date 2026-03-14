@@ -20,8 +20,8 @@ Recopilatorio de todas las expresiones explicadas en los apuntes del curso.
 | $k$ | Dimensión del espacio latente (mucho menor que $d$). | `z_dim` |
 | $n$ | Número de variables aleatorias, o tamaño del mini-batch (según contexto). | `x.shape[0]  # batch size` |
 | $D = \{x_1, \ldots, x_n\}$ | Dataset de muestras i.i.d. de la distribución real. | `DataLoader(dataset, ...)` |
-| $\mathbf{X}_\ell$ | Datos etiquetados: pares $(\mathbf{x}, y)$ con etiqueta conocida. En PS2: 100 imágenes. | `sup_iter` en `train.py` |
-| $\mathbf{X}_u$ | Datos sin etiquetar: solo $\mathbf{x}$, sin $y$. En PS2: 59900 imágenes. | `unsup_iter` en `train.py` |
+| $\mathbf{X}_\ell$ | Datos etiquetados: pares $(\mathbf{x}, y)$ con etiqueta conocida. Ej: 100 imágenes. | `sup_iter` en `train.py` |
+| $\mathbf{X}_u$ | Datos sin etiquetar: solo $\mathbf{x}$, sin $y$. Ej: 59900 imágenes. | `unsup_iter` en `train.py` |
 
 ### Espacios
 
@@ -84,9 +84,9 @@ Recopilatorio de todas las expresiones explicadas en los apuntes del curso.
 | $f_\theta(\mathbf{z})$ | Red neuronal decoder: toma $\mathbf{z}$ y produce los logits de los $d$ píxeles. | `logits = dec(z)` |
 | $\mu_\phi(\mathbf{x})$ | Media que predice el encoder para la imagen $\mathbf{x}$ (vector de $k$ dimensiones). | `m, v = enc(x)  # m es mu` |
 | $\sigma_\phi^2(\mathbf{x})$ | Varianza que predice el encoder (vector de $k$ dimensiones). | `m, v = enc(x)  # v es sigma²` |
-| $\mu_i : \mathbb{R}^{i-1} \to \mathbb{R}$ | Red que predice la media de $X_i$ dado las variables anteriores (modelo autorregresivo forward). | — *(PS1, no se usa en PS2)* |
-| $\sigma_i : \mathbb{R}^{i-1} \to \mathbb{R}_{++}$ | Red que predice la desviación estándar de $X_i$ (modelo autorregresivo forward). | — *(PS1, no se usa en PS2)* |
-| $\hat{\mu}_i, \hat{\sigma}_i$ | Redes del modelo autorregresivo reverse. El sombrero $\hat{}$ distingue del forward. | — *(PS1, no se usa en PS2)* |
+| $\mu_i : \mathbb{R}^{i-1} \to \mathbb{R}$ | Red que predice la media de $X_i$ dado las variables anteriores (modelo autorregresivo forward). | — |
+| $\sigma_i : \mathbb{R}^{i-1} \to \mathbb{R}_{++}$ | Red que predice la desviación estándar de $X_i$ (modelo autorregresivo forward). | — |
+| $\hat{\mu}_i, \hat{\sigma}_i$ | Redes del modelo autorregresivo reverse. El sombrero $\hat{}$ distingue del forward. | — |
 | $f_\phi(\mathbf{x})$ | Red del clasificador (en SSVAE): toma $\mathbf{x}$ y produce logits sobre clases. | `logits = cls(x)` |
 
 ### ELBO y objetivos de optimización
@@ -188,7 +188,7 @@ $$\max_{\theta, \phi} \; \gamma_w \sum_{\mathbf{x} \in \mathbf{X}} \text{ELBO}(\
 | $x_{<i}$ | Todas las variables con índice menor que $i$: $(x_1, \ldots, x_{i-1})$. |
 | $x_{>i}$ | Todas las variables con índice mayor que $i$: $(x_{i+1}, \ldots, x_n)$. |
 
-*(No se incluye columna PyTorch: los modelos autorregresivos son de PS1, con arquitectura propia.)*
+*(No se incluye columna PyTorch: los modelos autorregresivos tienen arquitectura propia.)*
 
 ### Modelos de lenguaje (GPT-2)
 
@@ -356,7 +356,7 @@ Referencia rápida de los símbolos de notación matemática que aparecen en los
 
 ## Parte 3: Referencia de funciones PyTorch del curso
 
-Funciones definidas en `utils.py` y los modelos de PS2. Cada nombre enlaza la expresión matemática con su implementación.
+Funciones definidas en `utils.py` y los modelos del curso. Cada nombre enlaza la expresión matemática con su implementación.
 
 ### Funciones de `utils.py`
 
@@ -427,7 +427,7 @@ niwae = -log_mean_exp(log_w, dim=0).mean()
 
 ---
 
-## Parte 4: PS3 — Flujos Normalizantes y GANs
+## Parte 4: Flujos Normalizantes y GANs
 
 ### Flujos normalizantes (MAF)
 
@@ -459,7 +459,7 @@ niwae = -log_mean_exp(log_w, dim=0).mean()
 | $L_D = -\mathbb{E}[\log D(\mathbf{x})] - \mathbb{E}[\log(1 - D(G(\mathbf{z})))]$ | Perdida del discriminador (se minimiza). | `loss_nonsaturating_d` |
 | $L_G^\text{non-sat} = -\mathbb{E}[\log D(G(\mathbf{z}))]$ | Perdida non-saturating del generador. Evita gradientes que se desvanecen. | `loss_nonsaturating_g` |
 | $D^*(\mathbf{x}) = \frac{p_\text{data}(\mathbf{x})}{p_\text{data}(\mathbf{x}) + p_G(\mathbf{x})}$ | Discriminador optimo para G fijo. | — *(resultado teorico)* |
-| $h^*_\phi(\mathbf{x}) = \log \frac{p_\text{data}(\mathbf{x})}{p_G(\mathbf{x})}$ | Logits optimos: log-ratio de densidades. | — *(resultado teorico, PS3 Q3b)* |
+| $h^*_\phi(\mathbf{x}) = \log \frac{p_\text{data}(\mathbf{x})}{p_G(\mathbf{x})}$ | Logits optimos: log-ratio de densidades. | — *(resultado teórico)* |
 
 ### Divergencias en GANs
 
@@ -475,7 +475,7 @@ niwae = -log_mean_exp(log_w, dim=0).mean()
 |-----------|-------------|---------|
 | $G_\theta(\mathbf{z}, y)$ | Generador condicional: recibe ruido + etiqueta de clase $y$ (one-hot). | `gen(z, y)` |
 | $D_\phi(\mathbf{x}, y)$ | Discriminador condicional: evalua realismo dado la clase. | `disc(x, y)` |
-| $h^*(\mathbf{x}, y) = \mathbf{y}^T(A\varphi(\mathbf{x}) + \mathbf{b})$ | Projection discriminator optimo (PS3 Q4a). $\varphi$ = features, $A$/$\mathbf{b}$ = parametros aprendidos. | `conditional_loss_*` en `gan.py` |
+| $h^*(\mathbf{x}, y) = \mathbf{y}^T(A\varphi(\mathbf{x}) + \mathbf{b})$ | Projection discriminator optimo. $\varphi$ = features, $A$/$\mathbf{b}$ = parametros aprendidos. | `conditional_loss_*` en `gan.py` |
 
 ### Wasserstein GAN con Gradient Penalty (WGAN-GP)
 
@@ -534,7 +534,7 @@ loss_g = -disc(gen(z)).mean()
 
 ---
 
-## Parte 5: PS4 — Score Matching y Modelos de Difusion
+## Parte 5: Score Matching y Modelos de Difusion
 
 ### Funcion score
 
@@ -554,7 +554,7 @@ loss_g = -disc(gen(z)).mean()
 | $\text{Tr}(A) \approx \frac{1}{m}\sum_j \mathbf{z}_j^\top A \mathbf{z}_j$ | **Estimador de Hutchinson**: aproxima la traza con vectores aleatorios. | `(z * (A @ z)).sum()` |
 | $\mathcal{L}_\text{DSM} = \mathbb{E}_{x, z}\left[\|s_\theta(x+z) + z/\sigma^2\|^2\right]$ | **Denoising Score Matching**: entrena el score prediciendo $-z/\sigma^2$ del dato ruidoso. | `denoising_score_matching_objective` |
 
-### Score matching en PyTorch (PS4)
+### Score matching en PyTorch
 
 | Funcion | Firma | Que calcula |
 |---------|-------|-------------|

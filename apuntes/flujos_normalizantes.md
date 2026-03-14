@@ -30,13 +30,13 @@ Basados en las notas del curso: [deepgenerativemodels.github.io/notes/flow](http
 
 En el curso hemos estudiado dos familias de modelos generativos basados en verosimilitud:
 
-**Modelos autorregresivos** (PS1):
+**Modelos autorregresivos**:
 
 $$p_\theta(\mathbf{x}) = \prod_{i=1}^{n} p_\theta(x_i \mid \mathbf{x}_{<i})$$
 
 Factorizan la distribución conjunta como producto de condicionales. Cada condicional es una distribución simple (ej: Gaussiana) parametrizada por una red neuronal.
 
-**Autoencoders variacionales (VAEs)** (PS2):
+**Autoencoders variacionales (VAEs)**:
 
 $$p_\theta(\mathbf{x}) = \int p_\theta(\mathbf{x}, \mathbf{z}) \, d\mathbf{z}$$
 
@@ -361,7 +361,7 @@ Capa 3: z₁ fijo, z₂ se transforma usando z₁
 ...
 ```
 
-Esto es análogo a cómo MAF usa capas `PermuteLayer` entre bloques MADE (ver `PS-3/ex1.md`).
+Esto es análogo a cómo MAF usa capas `PermuteLayer` entre bloques MADE.
 
 ---
 
@@ -371,7 +371,7 @@ Los modelos autorregresivos Gaussianos pueden interpretarse como flujos normaliz
 
 ### 6.1 La conexión
 
-Recuerda el modelo autorregresivo Gaussiano del PS1:
+Recuerda el modelo autorregresivo Gaussiano:
 
 $$p(x_i \mid \mathbf{x}_{<i}) = \mathcal{N}(x_i \mid \mu_i(\mathbf{x}_{<i}), \sigma_i^2(\mathbf{x}_{<i}))$$
 
@@ -409,7 +409,7 @@ Inverse (verosimilitud, x → z): RÁPIDO — paralelo O(1)
 
 **Resumen MAF:** Verosimilitud rápida, muestreo lento.
 
-> Para la implementación detallada de MAF con MADE, consulta [`PS-3/ex1.md`](PS-3/ex1.md).
+> Para más detalle sobre MAF, consulta [flujos_normalizantes.md](flujos_normalizantes.md) sección 6.
 
 ### 6.3 IAF (Inverse Autoregressive Flow)
 
@@ -507,9 +507,9 @@ En un flujo, la transformación invertible define $q(\mathbf{z}|\mathbf{x}) = \d
 
 > **Conexión profunda:** Los flujos y los VAEs no son familias completamente separadas. Un VAE cuyo encoder fuera determinista e invertible sería exactamente un flujo normalizante. La diferencia práctica es que los VAEs permiten $\text{dim}(\mathbf{z}) < \text{dim}(\mathbf{x})$ (compresión), mientras los flujos exigen $\text{dim}(\mathbf{z}) = \text{dim}(\mathbf{x})$ (invertibilidad).
 
-### 8.4 Conexión con el PS3
+### 8.4 Ejemplo práctico
 
-En el PS3, el ejercicio 1 implementa un modelo MAF de 5 capas sobre el dataset Moons (2D) usando bloques MADE. Los ejercicios 2-5 pasan a GANs, que son otra familia de modelos generativos que veremos por separado.
+Un modelo MAF de 5 capas puede entrenarse sobre el dataset Moons (2D) usando bloques MADE. Los flujos normalizantes se complementan con GANs, que son otra familia de modelos generativos.
 
 ---
 

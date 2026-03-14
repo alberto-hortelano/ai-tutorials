@@ -267,7 +267,7 @@ Conexiones permitidas:
 | Forward pass | n pases (uno por condicional) | 1 solo pase |
 | Profundidad | 1 capa oculta | Cualquier profundidad |
 | Orden | Fijo | Se puede aleatorizar (order agnostic) |
-| Usado en | Estimacion de densidad | MAF (normalizing flows, PS3) |
+| Usado en | Estimacion de densidad | MAF (normalizing flows) |
 
 ---
 

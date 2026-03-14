@@ -23,11 +23,11 @@ export const scene1 = new Scene({
       color: colors.textPrimary, font: `bold 18px ${fonts.body}`
     });
 
-    // Three comparison boxes: PS1, PS2, PS3
+    // Three comparison boxes: Autoregressive, VAEs, Flows
     const boxes = [
-      { label: tx('scene1', 'ps1Label'), pro: tx('scene1', 'ps1Pro'), con: tx('scene1', 'ps1Con'), color: series[0], start: 0.05 },
-      { label: tx('scene1', 'ps2Label'), pro: tx('scene1', 'ps2Pro'), con: tx('scene1', 'ps2Con'), color: series[3], start: 0.15 },
-      { label: tx('scene1', 'ps3Label'), pro: tx('scene1', 'ps3Pro'), con: tx('scene1', 'ps3Con'), color: series[1], start: 0.3 },
+      { label: tx('scene1', 'arLabel'), pro: tx('scene1', 'arPro'), con: tx('scene1', 'arCon'), color: series[0], start: 0.05 },
+      { label: tx('scene1', 'vaeLabel'), pro: tx('scene1', 'vaePro'), con: tx('scene1', 'vaeCon'), color: series[3], start: 0.15 },
+      { label: tx('scene1', 'flowLabel'), pro: tx('scene1', 'flowPro'), con: tx('scene1', 'flowCon'), color: series[1], start: 0.3 },
     ];
 
     const boxW = Math.min(W * 0.28, 155);
@@ -70,7 +70,7 @@ export const scene1 = new Scene({
       ctx.restore();
     });
 
-    // Convergent arrows to PS3 box
+    // Convergent arrows to Flows box
     const arrowP = easedSub(progress, 0.35, 0.5);
     if (arrowP > 0) {
       ctx.save();
@@ -79,21 +79,21 @@ export const scene1 = new Scene({
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 3]);
 
-      const ps3X = gap + 2 * (boxW + gap) + boxW / 2;
-      const ps3Y = boxY + boxH + 5;
+      const flowX = gap + 2 * (boxW + gap) + boxW / 2;
+      const flowY = boxY + boxH + 5;
 
-      // Arrow from PS1
-      const ps1X = gap + boxW / 2;
+      // Arrow from Autoregressive box
+      const arX = gap + boxW / 2;
       ctx.beginPath();
-      ctx.moveTo(ps1X, boxY + boxH + 5);
-      ctx.quadraticCurveTo(ps1X + (ps3X - ps1X) / 2, boxY + boxH + 30, ps3X, ps3Y);
+      ctx.moveTo(arX, boxY + boxH + 5);
+      ctx.quadraticCurveTo(arX + (flowX - arX) / 2, boxY + boxH + 30, flowX, flowY);
       ctx.stroke();
 
-      // Arrow from PS2
-      const ps2X = gap + (boxW + gap) + boxW / 2;
+      // Arrow from VAE box
+      const vaeX = gap + (boxW + gap) + boxW / 2;
       ctx.beginPath();
-      ctx.moveTo(ps2X, boxY + boxH + 5);
-      ctx.quadraticCurveTo(ps2X + (ps3X - ps2X) / 2, boxY + boxH + 25, ps3X, ps3Y);
+      ctx.moveTo(vaeX, boxY + boxH + 5);
+      ctx.quadraticCurveTo(vaeX + (flowX - vaeX) / 2, boxY + boxH + 25, flowX, flowY);
       ctx.stroke();
 
       ctx.setLineDash([]);

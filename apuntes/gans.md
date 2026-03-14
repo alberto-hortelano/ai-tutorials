@@ -2,7 +2,7 @@
 
 Estos apuntes explican la teoria de las **redes generativas adversarias** (Generative Adversarial Networks), una familia de modelos generativos profundos que aprenden a generar datos **sin maximizar la verosimilitud directamente**, usando en su lugar un juego entre dos redes neuronales.
 
-Basados en las notas del curso: [deepgenerativemodels.github.io/notes/gan](https://deepgenerativemodels.github.io/notes/gan/) y en el PS3.
+Basados en las notas del curso: [deepgenerativemodels.github.io/notes/gan](https://deepgenerativemodels.github.io/notes/gan/).
 
 ---
 
@@ -34,9 +34,9 @@ Basados en las notas del curso: [deepgenerativemodels.github.io/notes/gan](https
 
 Hasta ahora hemos entrenado modelos generativos maximizando la verosimilitud (MLE):
 
-- **Modelos autorregresivos** (PS1): $p_\theta(\mathbf{x}) = \prod_i p_\theta(x_i \mid \mathbf{x}_{<i})$
-- **VAEs** (PS2): maximizamos el ELBO, una cota inferior de $\log p_\theta(\mathbf{x})$
-- **Flujos normalizantes** (PS3 Q1): $\log p_X(\mathbf{x}) = \log p_Z(f^{-1}(\mathbf{x})) + \log|\det J|$
+- **Modelos autorregresivos**: $p_\theta(\mathbf{x}) = \prod_i p_\theta(x_i \mid \mathbf{x}_{<i})$
+- **VAEs**: maximizamos el ELBO, una cota inferior de $\log p_\theta(\mathbf{x})$
+- **Flujos normalizantes**: $\log p_X(\mathbf{x}) = \log p_Z(f^{-1}(\mathbf{x})) + \log|\det J|$
 
 Pero hay un problema fundamental: **alta verosimilitud no garantiza alta calidad de muestras**. Un modelo puede asignar alta probabilidad a los datos reales y aun asi generar muestras borrosas o poco realistas. El caso extremo es un modelo que simplemente memoriza el dataset -- verosimilitud perfecta, pero generalizacion nula.
 
@@ -200,7 +200,7 @@ $$h_\phi(\mathbf{x}) = \log \frac{p_\text{data}(\mathbf{x})}{p_G(\mathbf{x})}$$
 
 Esto es el **log-ratio de verosimilitudes**. Si $h_\phi(\mathbf{x}) > 0$, el dato es mas probable bajo $p_\text{data}$ que bajo $p_G$ (es decir, probablemente es real). Si $h_\phi(\mathbf{x}) < 0$, es mas probable que sea falso.
 
-**Nota:** Este resultado aparece en el PS3 Q3b y es fundamental para conectar GANs con medidas de divergencia.
+**Nota:** Este resultado es fundamental para conectar GANs con medidas de divergencia.
 
 ---
 
@@ -271,7 +271,7 @@ Reescribiendola en terminos de los logits ($D = \sigma(h)$, asi que $1 - D = \si
 
 $$L_G^\text{minimax} = \mathbb{E}_{\mathbf{z}}[\log(1 - \sigma(h_\phi(G_\theta(\mathbf{z}))))]$$
 
-Cuando el discriminador es bueno y rechaza todas las muestras falsas, $D(G(\mathbf{z})) \approx 0$, lo que equivale a $h_\phi(G(\mathbf{z})) \ll 0$. Calculando la derivada (del PS3 Q2a):
+Cuando el discriminador es bueno y rechaza todas las muestras falsas, $D(G(\mathbf{z})) \approx 0$, lo que equivale a $h_\phi(G(\mathbf{z})) \ll 0$. Calculando la derivada:
 
 $$\frac{\partial L_G^\text{minimax}}{\partial \theta} = \mathbb{E}_{\mathbf{z}} \left[ -\frac{\sigma'(h_\phi(G_\theta(\mathbf{z})))}{1 - \sigma(h_\phi(G_\theta(\mathbf{z})))} \cdot \frac{\partial}{\partial \theta} h_\phi(G_\theta(\mathbf{z})) \right]$$
 
@@ -422,9 +422,9 @@ Recordemos de [`KL-Divergence.md`](KL-Divergence.md) que la KL no es simetrica: 
 **KL reverse** (mode-seeking): $D_\text{KL}[p_\theta \| p_\text{data}]$
 - Penaliza si $p_\theta$ asigna probabilidad **alta** donde $p_\text{data}$ asigna probabilidad **baja**
 - Resultado: $p_\theta$ se "concentra" en un subconjunto de modos, pero no genera basura
-- **GANs** (con non-saturating loss + D optimo) minimizan esta (resultado del PS3 Q3c)
+- **GANs** (con non-saturating loss + D optimo) minimizan esta
 
-### 8.2 Resultado del PS3 Q3c
+### 8.2 Resultado
 
 Cuando el discriminador es optimo y usamos la perdida combinada (minimax + non-saturating), el generador minimiza:
 
@@ -444,7 +444,7 @@ $$L_G(\theta; \phi) = D_\text{KL}(p_\theta(\mathbf{x}) \| p_\text{data}(\mathbf{
 | Riesgo | Genera en zonas "vacias" | Mode collapse |
 | Evaluacion | ELBO (cota de verosimilitud) | Sin metrica directa |
 
-### 8.4 Conexión con VAEs (PS3 Q3d)
+### 8.4 Conexión con VAEs
 
 La negative log-likelihood (NLL) que minimizan los VAEs se puede descomponer como:
 
@@ -452,12 +452,12 @@ $$-\mathbb{E}_{\mathbf{x} \sim p_\text{data}}[\log p_\theta(\mathbf{x})] = D_\te
 
 donde la constante es $-H(p_\text{data})$ (la entropía de los datos, que no depende de $\theta$).
 
-Esto significa que un VAE (minimizando NLL vía ELBO) y un GAN (minimizando $D_\text{KL}(p_\theta \| p_\text{data})$ con la pérdida del Q3c) **no** optimizan el mismo objetivo:
+Esto significa que un VAE (minimizando NLL vía ELBO) y un GAN (minimizando $D_\text{KL}(p_\theta \| p_\text{data})$) **no** optimizan el mismo objetivo:
 
 | Modelo | Minimiza respecto a $\theta$ | Dirección de la KL |
 |--------|------------------------------|---------------------|
 | VAE (ELBO → NLL) | $D_\text{KL}(p_\text{data} \| p_\theta)$ | Forward (mode-covering) |
-| GAN ($L_G$ del Q3c) | $D_\text{KL}(p_\theta \| p_\text{data})$ | Reverse (mode-seeking) |
+| GAN ($L_G$) | $D_\text{KL}(p_\theta \| p_\text{data})$ | Reverse (mode-seeking) |
 
 La dirección de la KL es opuesta, lo que explica las diferencias en calidad de muestras (GANs más nítidas, VAEs más diversas).
 
@@ -551,7 +551,7 @@ Un GAN **incondicional** aprende $p_\theta(\mathbf{x})$. Un GAN **condicional** 
 
 ### 10.2 La funcion objetivo condicional
 
-Del PS3 Q4, la perdida del discriminador condicional es:
+La perdida del discriminador condicional es:
 
 $$L_D = -\mathbb{E}_{(\mathbf{x},y) \sim p_\text{data}}[\log D_\phi(\mathbf{x}, y)] - \mathbb{E}_{y \sim p(y)}\left[\mathbb{E}_{\mathbf{z} \sim p(\mathbf{z})}[\log(1 - D_\phi(G_\theta(\mathbf{z}, y), y))]\right]$$
 
@@ -578,7 +578,7 @@ La forma mas simple: **concatenar** el one-hot con z y pasarlo por la red neuron
 
 ### 10.4 Projection discriminator
 
-Del PS3 Q4a, bajo ciertas suposiciones (las features $\varphi(\mathbf{x})$ siguen mezclas de Gaussianas por clase), el discriminador optimo tiene la forma:
+Bajo ciertas suposiciones (las features $\varphi(\mathbf{x})$ siguen mezclas de Gaussianas por clase), el discriminador optimo tiene la forma:
 
 $$h^*(\mathbf{x}, y) = \mathbf{y}^T(A\varphi(\mathbf{x}) + \mathbf{b})$$
 
@@ -634,7 +634,7 @@ $$\mathcal{L}_\text{total} = \mathcal{L}_\text{GAN}(G, D_\mathcal{Y}) + \mathcal
 
 ### 11.1 El problema con JSD/KL y soportes disjuntos
 
-Del PS3 Q5, cuando las distribuciones $p_\theta$ y $p_\text{data}$ tienen **soportes que no se solapan** (lo cual es comun en la practica, ya que los datos reales viven en una variedad de baja dimension):
+Cuando las distribuciones $p_\theta$ y $p_\text{data}$ tienen **soportes que no se solapan** (lo cual es comun en la practica, ya que los datos reales viven en una variedad de baja dimension):
 
 - $D_\text{KL}[p_\theta \| p_\text{data}] \to \infty$
 - $D_\text{JSD}[p_\theta, p_\text{data}] = \log 2$ (constante)
@@ -704,7 +704,7 @@ $$W(p, q) = \sup_{\|D\|_L \leq 1} \left( \mathbb{E}_{\mathbf{x} \sim p}[D(\mathb
 
 ### 11.4 WGAN-GP (Gradient Penalty)
 
-Del PS3 Q5e, la forma practica de imponer la restriccion de Lipschitz es anadiendo una **penalizacion sobre la norma del gradiente**:
+La forma practica de imponer la restriccion de Lipschitz es anadiendo una **penalizacion sobre la norma del gradiente**:
 
 $$L_D = \mathbb{E}_{\mathbf{x} \sim p_\theta}[D_\phi(\mathbf{x})] - \mathbb{E}_{\mathbf{x} \sim p_\text{data}}[D_\phi(\mathbf{x})] + \lambda \mathbb{E}_{\mathbf{x} \sim r_\theta}[(\|\nabla D_\phi(\mathbf{x})\|_2 - 1)^2]$$
 
